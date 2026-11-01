@@ -1,0 +1,22 @@
+# Python 3.11+（deepagents 需要 3.11）
+# 下面是 2026-10 测试通过的版本，用 >= 便于升级
+
+langchain[mcp]>=1.4.7        # create_agent、中间件、MCPAdapter（[mcp] 会装 FastMCP）
+langgraph>=1.2.18            # checkpointer、store、StateGraph
+langchain-text-splitters>=1.1.3
+deepagents>=0.7.32           # 第 5、10、16 章的文件系统 / 子 agent 中间件
+langsmith>=0.14              # 第 19 章追踪
+
+# 模型供应商：至少装一个，和 .env 里的 LC_MODEL 对应
+langchain-openai>=1.7.3
+langchain-anthropic>=1.7.7
+# langchain-google-genai     # google_genai:gemini-...
+# langchain-ollama           # ollama:... 本地模型
+# langchain-deepseek         # deepseek:deepseek-chat
+
+pypdf>=6.0                   # 第 17 章读 PDF
+requests>=2.32               # 第 18 章下载数据库
+python-dotenv>=1.0
+pytest>=8.0
+# agentevals                 # tests/test_integration_and_evals.py 里的轨迹评估（可选）
+# langgraph-checkpoint-postgres  # 第 6、14 章 Postgres 示例（可选）
