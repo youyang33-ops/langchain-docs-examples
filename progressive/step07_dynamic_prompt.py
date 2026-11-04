@@ -8,6 +8,11 @@
     > /new
     > 介绍一下 LangChain        （新对话里它依然叫你小明，并且回答很简短）
 第 6 步里资料虽然存下来了，但模型看不到；这一步让它"用上"长期记忆。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import sys
@@ -25,6 +30,7 @@ from langgraph.store.memory import InMemoryStore  # noqa: E402
 
 from common import get_model  # noqa: E402
 
+# 【补写】学习助手的提示词
 BASE_PROMPT = (  # ★ 修改：改名为 BASE_PROMPT，由 personalized_prompt 拼接使用
     "You are a friendly study assistant for someone learning LangChain. Reply in the user's language.\n"
     "Use save_note when the user asks you to remember something, and list_notes to show notes.\n"
@@ -32,19 +38,23 @@ BASE_PROMPT = (  # ★ 修改：改名为 BASE_PROMPT，由 personalized_prompt 
 )
 
 
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:
     user_id: str
 
 
+# 【补写】笔记的 namespace
 def notes_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "notes")
 
 
+# 【补写】用户资料的 namespace
 def profile_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "profile")
 
 
+# 【补写】学习助手的工具（ToolRuntime 写法参考 tools 页）
 @tool
 def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     """Save a study note for the user."""
@@ -53,6 +63,7 @@ def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     return f"Saved note {key}."
 
 
+# 【补写】学习助手的工具
 @tool
 def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     """List all of the user's notes with their IDs."""
@@ -60,6 +71,7 @@ def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{i.key}] {i.value['text']}" for i in items) or "No notes yet."
 
 
+# 【补写】学习助手的工具（读写 store 写法参考 context-engineering · Writes）
 @tool
 def update_profile(
     name: str | None = None, answer_style: str | None = None, *, runtime: ToolRuntime[UserContext]
@@ -76,6 +88,7 @@ def update_profile(
 
 
 # ★ 新增：中间件。每次调用模型前运行，返回值就是这次用的系统提示词
+# 【补写】写法参考 context-engineering · System Prompt
 @dynamic_prompt
 def personalized_prompt(request: ModelRequest) -> str:
     profile = request.runtime.store.get(profile_ns(request.runtime), "me")
@@ -88,6 +101,7 @@ def personalized_prompt(request: ModelRequest) -> str:
     return prompt
 
 
+# 【补写】组装学习助手
 def build_agent(store: InMemoryStore):
     return create_agent(
         model=get_model(),
@@ -99,10 +113,12 @@ def build_agent(store: InMemoryStore):
     )
 
 
+# 【补写】生成新的 thread_id
 def new_config() -> dict:
     return {"configurable": {"thread_id": uuid.uuid4().hex}}
 
 
+# 【补写】聊天一轮
 def chat(agent, text: str, config: dict, context: UserContext) -> None:
     stream = agent.stream_events(
         {"messages": [{"role": "user", "content": text}]}, config, context=context, version="v3"
@@ -119,12 +135,14 @@ def chat(agent, text: str, config: dict, context: UserContext) -> None:
     print()
 
 
+# 【补写】打印长期记忆
 def show_memory(store, user_id: str) -> None:
     for category in ("profile", "notes"):
         for item in store.search((user_id, category), limit=50):
             print(f"  {category:<8} {item.key}: {item.value}")
 
 
+# 【补写】命令行主循环
 def main() -> None:
     store = InMemoryStore()
     agent = build_agent(store)
@@ -154,5 +172,6 @@ def main() -> None:
             chat(agent, text, config, context)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     main()

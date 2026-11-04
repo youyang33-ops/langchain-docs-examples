@@ -8,6 +8,13 @@
 - 包裹式（wrap-style）：wrap_model_call / wrap_tool_call
     拿到 handler，自己决定调用几次、改不改请求和结果（重试、换模型、缓存……）
 两种写法：装饰器（@before_model）或继承 AgentMiddleware 类。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from collections.abc import Callable
@@ -36,12 +43,14 @@ from typing_extensions import NotRequired
 from common import get_model, get_small_model, last_text, run_demos
 
 
+# 【文档原代码·有改动】overview · Create an agent：加了 @tool
 @tool
 def get_weather(city: str) -> str:
     """Get weather for a given city."""
     return f"It's always sunny in {city}!"
 
 
+# 【补写】调用 agent 的小工具
 def _ask(agent, text: str = "What's the weather in Paris?", **state):
     return agent.invoke({"messages": [HumanMessage(text)], **state})
 
@@ -49,6 +58,7 @@ def _ask(agent, text: str = "What's the weather in Paris?", **state):
 # ---------------------------------------------------------------------------
 # 节点式钩子：装饰器写法 vs 类写法
 # ---------------------------------------------------------------------------
+# 【文档原代码】middleware/custom · Node-style hooks
 @before_model(can_jump_to=["end"])
 def check_message_limit(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
     if len(state["messages"]) >= 50:
@@ -56,28 +66,34 @@ def check_message_limit(state: AgentState, runtime: Runtime) -> dict[str, Any] |
     return None
 
 
+# 【文档原代码·有改动】middleware/custom · Node-style hooks：print 加前缀，并截断内容
 @after_model
 def log_response(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
     print(f"[after_model] Model returned: {state['messages'][-1].text[:80]!r}")
     return None
 
 
+# 【文档原代码·有改动】middleware/custom · Node-style hooks：after_model 打印内容改了
 class MessageLimitMiddleware(AgentMiddleware):
+    # 【文档原代码】middleware/custom · Node-style hooks
     def __init__(self, max_messages: int = 50):
         super().__init__()
         self.max_messages = max_messages
 
+    # 【文档原代码】middleware/custom · Node-style hooks
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         if len(state["messages"]) >= self.max_messages:
             return {"messages": [AIMessage("Conversation limit reached.")], "jump_to": "end"}
         return None
 
+    # 【文档原代码·有改动】middleware/custom · Node-style hooks：打印内容改了
     def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         print(f"[MessageLimitMiddleware] {len(state['messages'])} messages so far")
         return None
 
 
+# 【补写】运行本节的几个钩子
 def demo_node_style_hooks():
     """@before_model / @after_model，以及等价的类写法"""
     agent = create_agent(get_model(), tools=[get_weather], middleware=[check_message_limit, log_response])
@@ -91,6 +107,7 @@ def demo_node_style_hooks():
 # ---------------------------------------------------------------------------
 # 包裹式钩子：重试
 # ---------------------------------------------------------------------------
+# 【文档原代码】middleware/custom · Wrap-style hooks
 @wrap_model_call
 def retry_model(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     for attempt in range(3):
@@ -102,11 +119,14 @@ def retry_model(request: ModelRequest, handler: Callable[[ModelRequest], ModelRe
             print(f"Retry {attempt + 1}/3 after error: {e}")
 
 
+# 【文档原代码】middleware/custom · Wrap-style hooks
 class RetryMiddleware(AgentMiddleware):
+    # 【文档原代码】middleware/custom · Wrap-style hooks
     def __init__(self, max_retries: int = 3):
         super().__init__()
         self.max_retries = max_retries
 
+    # 【文档原代码】middleware/custom · Wrap-style hooks
     def wrap_model_call(self, request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
         for attempt in range(self.max_retries):
             try:
@@ -117,6 +137,7 @@ class RetryMiddleware(AgentMiddleware):
                 print(f"Retry {attempt + 1}/{self.max_retries} after error: {e}")
 
 
+# 【补写】运行本节的两种重试写法
 def demo_wrap_style_hooks():
     """@wrap_model_call 与 AgentMiddleware.wrap_model_call 实现重试"""
     for mw in (retry_model, RetryMiddleware()):
@@ -127,21 +148,25 @@ def demo_wrap_style_hooks():
 # ---------------------------------------------------------------------------
 # 更新 state
 # ---------------------------------------------------------------------------
+# 【文档原代码】middleware/custom · Node-style hooks
 class TrackingState(AgentState):
     model_call_count: NotRequired[int]
 
 
+# 【文档原代码】middleware/custom · Node-style hooks
 @after_model(state_schema=TrackingState)
 def increment_after_model(state: TrackingState, runtime: Runtime) -> dict[str, Any] | None:
     return {"model_call_count": state.get("model_call_count", 0) + 1}
 
 
+# 【文档原代码】middleware/custom · Wrap-style hooks
 class UsageTrackingState(AgentState):
     """Agent state with token usage tracking."""
 
     last_model_call_tokens: NotRequired[int]
 
 
+# 【文档原代码·有改动】middleware/custom · Wrap-style hooks：文档写死 150，这里读取真实的 token 用量
 @wrap_model_call(state_schema=UsageTrackingState)
 def track_usage(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ExtendedModelResponse:
     response = handler(request)
@@ -153,6 +178,7 @@ def track_usage(request: ModelRequest, handler: Callable[[ModelRequest], ModelRe
     )
 
 
+# 【补写】运行本节的两个钩子
 def demo_state_updates():
     """节点式返回 dict；包裹式返回 ExtendedModelResponse(command=...)"""
     agent = create_agent(get_model(), tools=[get_weather], middleware=[increment_after_model, track_usage])
@@ -161,18 +187,22 @@ def demo_state_updates():
     print("last_model_call_tokens =", result.get("last_model_call_tokens"))
 
 
+# 【文档原代码】middleware/custom · Composition with multiple middleware
 def _last_wins(_a: str, b: str) -> str:
     """Reducer: last writer wins (outer overwrites inner)."""
     return b
 
 
+# 【文档原代码·有改动】middleware/custom · Composition with multiple middleware：只去掉了 docstring
 class CustomMiddlewareState(AgentState):
     trace_layer: NotRequired[Annotated[str, _last_wins]]
 
 
+# 【文档原代码·有改动】middleware/custom · Composition with multiple middleware：加了 state_schema（否则 trace_layer 不生效）；去掉参数类型标注
 class OuterMiddleware(AgentMiddleware):
     state_schema = CustomMiddlewareState
 
+    # 【文档原代码·有改动】middleware/custom · Composition with multiple middleware：去掉参数类型标注
     def wrap_model_call(self, request, handler) -> ExtendedModelResponse:
         response = handler(request)
         return ExtendedModelResponse(
@@ -181,9 +211,11 @@ class OuterMiddleware(AgentMiddleware):
         )
 
 
+# 【文档原代码·有改动】middleware/custom · Composition with multiple middleware：加了 state_schema；去掉 docstring 和参数类型标注
 class InnerMiddleware(AgentMiddleware):
     state_schema = CustomMiddlewareState
 
+    # 【文档原代码·有改动】middleware/custom · Composition with multiple middleware：去掉参数类型标注；加了返回类型
     def wrap_model_call(self, request, handler) -> ExtendedModelResponse:
         response = handler(request)
         return ExtendedModelResponse(
@@ -192,6 +224,7 @@ class InnerMiddleware(AgentMiddleware):
         )
 
 
+# 【补写】运行 Outer + Inner
 def demo_composition():
     """多个包裹式中间件叠加：列表靠前的在外层；reducer 决定冲突字段谁赢"""
     agent = create_agent(get_model(), tools=[], middleware=[OuterMiddleware(), InnerMiddleware()])
@@ -203,24 +236,29 @@ def demo_composition():
 # ---------------------------------------------------------------------------
 # 自定义 state schema + 跳转
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/custom · Custom state schema：文档叫 CustomState，这里改名
 class CounterState(AgentState):
     model_call_count: NotRequired[int]
     user_id: NotRequired[str]
 
 
+# 【文档原代码·有改动】middleware/custom · Custom state schema：CustomState 改名；before_model 加了 hook_config（否则不能跳转）
 class CallCounterMiddleware(AgentMiddleware[CounterState]):
     state_schema = CounterState
 
+    # 【文档原代码·有改动】middleware/custom · Custom state schema：加了 hook_config；去掉中间变量
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: CounterState, runtime) -> dict[str, Any] | None:
         if state.get("model_call_count", 0) > 10:
             return {"jump_to": "end"}
         return None
 
+    # 【文档原代码·有改动】middleware/custom · Custom state schema：CustomState 改名
     def after_model(self, state: CounterState, runtime) -> dict[str, Any] | None:
         return {"model_call_count": state.get("model_call_count", 0) + 1}
 
 
+# 【文档原代码·有改动】middleware/custom · Agent jumps：去掉中间变量；content 改成 .text
 @after_model
 @hook_config(can_jump_to=["end"])
 def check_for_blocked(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
@@ -229,6 +267,7 @@ def check_for_blocked(state: AgentState, runtime: Runtime) -> dict[str, Any] | N
     return None
 
 
+# 【文档原代码·有改动】middleware/custom · Custom state schema：模型改成 get_model()；调用来自文档，jump 那段调用是补写
 def demo_custom_state_and_jumps():
     """中间件声明自己的 state 字段；jump_to 提前结束"""
     agent = create_agent(get_model(), tools=[], middleware=[CallCounterMiddleware()])
@@ -242,6 +281,7 @@ def demo_custom_state_and_jumps():
 # ---------------------------------------------------------------------------
 # 常用示例：动态提示词、动态模型、工具监控、缓存提示
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/custom · Dynamic prompt：处理 system_message 为空的情况；追加的文字改了
 @wrap_model_call
 def add_context(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     # system_message 可能为空；用 content_blocks 追加内容
@@ -250,10 +290,12 @@ def add_context(request: ModelRequest, handler: Callable[[ModelRequest], ModelRe
     return handler(request.override(system_message=new_system_message))
 
 
+# 【文档原代码·有改动】middleware/custom · Dynamic model selection：把文档模块级的模型初始化放进工厂函数（没配 key 也能 import）
 def make_dynamic_model_middleware():
     # 模型对象在中间件外面只初始化一次，不要每次调用都 init
     complex_model, simple_model = get_model(), get_small_model()
 
+    # 【文档原代码·有改动】middleware/custom · Dynamic model selection：if/else 改成一行条件表达式
     @wrap_model_call
     def dynamic_model(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
         model = complex_model if len(request.messages) > 10 else simple_model
@@ -262,6 +304,7 @@ def make_dynamic_model_middleware():
     return dynamic_model
 
 
+# 【文档原代码·有改动】middleware/custom · Tool call monitoring：两行 print 合并
 @wrap_tool_call
 def monitor_tool(
     request: ToolCallRequest,
@@ -277,6 +320,7 @@ def monitor_tool(
         raise
 
 
+# 【补写】把本节几个中间件叠在一起运行
 def demo_examples():
     """动态系统提示词 + 动态模型 + 工具调用监控，叠在一起用"""
     agent = create_agent(
@@ -288,6 +332,7 @@ def demo_examples():
     print(last_text(_ask(agent)))
 
 
+# 【文档原代码·有改动】middleware/custom · Prompt caching (Anthropic)：处理 system_message 为空的情况；去掉中间变量
 @wrap_model_call
 def add_cached_context(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     """Anthropic 提示缓存：cache_control 之前的内容会被缓存"""
@@ -302,6 +347,7 @@ def add_cached_context(request: ModelRequest, handler: Callable[[ModelRequest], 
     return handler(request.override(system_message=SystemMessage(content=new_content)))
 
 
+# 【补写】运行 add_cached_context
 def demo_prompt_caching():
     """Anthropic 提示缓存（其他供应商会忽略 cache_control）"""
     agent = create_agent(get_model(), tools=[], system_prompt="You analyze documents.", middleware=[add_cached_context])
@@ -310,22 +356,28 @@ def demo_prompt_caching():
     print(result["messages"][-1].usage_metadata)  # 第二次调用时留意 cache_read 字段
 
 
+# 【文档原代码·有改动】middleware/custom · Class-based middleware：类移到函数里；模型改成 get_model()；加了异步调用
 def demo_class_based_logging():
     """完整的类写法：同步 + 异步钩子"""
 
+    # 【文档原代码·有改动】middleware/custom · Class-based middleware：print 截断内容；异步钩子加前缀
     class LoggingMiddleware(AgentMiddleware):
+        # 【文档原代码】middleware/custom · Class-based middleware
         def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
             print(f"About to call model with {len(state['messages'])} messages")
             return None
 
+        # 【文档原代码·有改动】middleware/custom · Class-based middleware：print 截断内容
         def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
             print(f"Model returned: {state['messages'][-1].text[:60]!r}")
             return None
 
+        # 【文档原代码·有改动】middleware/custom · Class-based middleware：文档是空实现，这里加了 print
         async def abefore_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
             print(f"(async) About to call model with {len(state['messages'])} messages")
             return None
 
+        # 【文档原代码·有改动】middleware/custom · Class-based middleware：print 加前缀并截断内容
         async def aafter_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
             print(f"(async) Model returned: {state['messages'][-1].text[:60]!r}")
             return None
@@ -338,5 +390,6 @@ def demo_class_based_logging():
     asyncio.run(agent.ainvoke({"messages": [HumanMessage("hi")]}))  # 异步调用走 a* 钩子
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

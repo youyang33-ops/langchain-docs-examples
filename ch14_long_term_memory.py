@@ -5,6 +5,13 @@
 - 短期记忆（checkpointer）按 thread_id 隔离；长期记忆（store）按 namespace + key 存 JSON
 - store.put / get / search；配置 embedding 后 search 支持语义检索
 - 工具通过 runtime.store 读写；生产环境用 PostgresStore
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from collections.abc import Sequence
@@ -20,8 +27,10 @@ from typing_extensions import TypedDict
 from common import get_model, last_text, run_demos
 
 
+# 【文档原代码·有改动】long-term-memory · Memory storage：包成函数；打印结果
 def demo_store_basics():
     """put / get / search，以及带向量索引的语义搜索"""
+    # 【文档原代码】long-term-memory · Memory storage
     def embed(texts: Sequence[str]) -> list[list[float]]:
         # 文档里的占位实现；真实项目换成 OpenAIEmbeddings 等
         return [[1.0, 2.0] for _ in texts]
@@ -38,6 +47,7 @@ def demo_store_basics():
     print("search:", [(i.key, i.score) for i in items])
 
 
+# 【补写】用 Embeddings 对象做语义检索
 def demo_semantic_search():
     """用 LangChain 的 Embeddings 对象做真正的语义检索"""
     embeddings = DeterministicFakeEmbedding(size=256)  # 离线可跑；换成 OpenAIEmbeddings 效果更好
@@ -53,15 +63,18 @@ def demo_semantic_search():
         print(round(hit.score or 0, 3), hit.value["text"])
 
 
+# 【文档原代码】long-term-memory · Read long-term memory in tools
 @dataclass
 class Context:
     user_id: str
 
 
+# 【文档原代码】long-term-memory · Write long-term memory from tools
 class UserInfo(TypedDict):
     name: str
 
 
+# 【文档原代码】long-term-memory · Read long-term memory in tools
 @tool
 def get_user_info(runtime: ToolRuntime[Context]) -> str:
     """Look up user info."""
@@ -70,6 +83,7 @@ def get_user_info(runtime: ToolRuntime[Context]) -> str:
     return str(user_info.value) if user_info else "Unknown user"
 
 
+# 【文档原代码】long-term-memory · Write long-term memory from tools
 @tool
 def save_user_info(user_info: UserInfo, runtime: ToolRuntime[Context]) -> str:
     """Save user info."""
@@ -78,6 +92,7 @@ def save_user_info(user_info: UserInfo, runtime: ToolRuntime[Context]) -> str:
     return "Successfully saved user info."
 
 
+# 【文档原代码·有改动】long-term-memory · Read long-term memory in tools：模型改成 get_model()；工具移到模块级
 def demo_read_in_tools():
     """预先写入 store，工具按 context.user_id 读取"""
     store = InMemoryStore()
@@ -90,6 +105,7 @@ def demo_read_in_tools():
     print(last_text(result))
 
 
+# 【文档原代码·有改动】long-term-memory · Write long-term memory from tools：模型改成 get_model()；多加了第二次对话
 def demo_write_in_tools():
     """agent 用工具把信息写进 store；新对话也能读到"""
     store = InMemoryStore()
@@ -104,6 +120,7 @@ def demo_write_in_tools():
     print(last_text(result))
 
 
+# 【文档原代码·有改动】long-term-memory · Read long-term memory in tools：不运行，只打印 Postgres 版示例
 def demo_postgres_store():
     """生产环境：PostgresStore（需要 Postgres 与 langgraph-checkpoint-postgres）"""
     print("""示例代码：
@@ -118,5 +135,6 @@ with PostgresStore.from_conn_string(DB_URI) as store:
 """)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

@@ -7,6 +7,13 @@
 - ToolRuntime 参数（模型看不到）可以读写 state、context、store，或推送流式进度
 - 工具可以返回字符串、字典、多模态内容，或 Command（直接改 agent 的 state）
 - 用中间件动态增减工具
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from collections.abc import Callable
@@ -36,6 +43,7 @@ from common import get_model, last_text, run_demos
 # ---------------------------------------------------------------------------
 # 定义工具
 # ---------------------------------------------------------------------------
+# 【文档原代码】tools · Basic tool definition
 @tool
 def search_database(query: str, limit: int = 10) -> str:
     """Search the customer database for records matching the query.
@@ -47,12 +55,14 @@ def search_database(query: str, limit: int = 10) -> str:
     return f"Found {limit} results for '{query}'"
 
 
+# 【文档原代码】tools · Custom tool name
 @tool("web_search")  # 自定义工具名
 def search(query: str) -> str:
     """Search the web for information."""
     return f"Results for: {query}"
 
 
+# 【文档原代码·有改动】tools · Custom tool description：eval 限制了 builtins，文档是直接 eval
 @tool("calculator", description="Performs arithmetic calculations. Use this for any math problems.")
 def calc(expression: str) -> str:
     """Evaluate mathematical expressions."""
@@ -60,6 +70,7 @@ def calc(expression: str) -> str:
     return str(eval(expression, {"__builtins__": {}}))
 
 
+# 【文档原代码】tools · Advanced schema definition
 class WeatherInput(BaseModel):
     """Input for weather queries."""
 
@@ -70,6 +81,7 @@ class WeatherInput(BaseModel):
     include_forecast: bool = Field(default=False, description="Include 5-day forecast")
 
 
+# 【文档原代码】tools · Advanced schema definition
 @tool(args_schema=WeatherInput)
 def get_weather(location: str, units: str = "celsius", include_forecast: bool = False) -> str:
     """Get current weather and optional forecast."""
@@ -80,6 +92,7 @@ def get_weather(location: str, units: str = "celsius", include_forecast: bool = 
     return result
 
 
+# 【补写】查看工具属性并调用
 def demo_define_tools():
     """查看工具的 name / description / 参数 schema，并直接调用"""
     for t in (search_database, search, calc, get_weather):
@@ -92,11 +105,13 @@ def demo_define_tools():
 # ---------------------------------------------------------------------------
 # ToolRuntime：读写 state
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】tools · Update state：多了 user_preferences 字段
 class CustomState(AgentState):
     user_name: str
     user_preferences: dict
 
 
+# 【文档原代码·有改动】tools · Access state：去掉了中间变量 messages
 @tool
 def get_last_user_message(runtime: ToolRuntime) -> str:
     """Get the most recent message from the user."""
@@ -106,12 +121,14 @@ def get_last_user_message(runtime: ToolRuntime) -> str:
     return "No user messages found"
 
 
+# 【文档原代码·有改动】tools · Access state：两行合并成一行
 @tool
 def get_user_preference(pref_name: str, runtime: ToolRuntime) -> str:
     """Get a user preference value."""
     return runtime.state.get("user_preferences", {}).get(pref_name, "Not set")
 
 
+# 【文档原代码】tools · Update state
 @tool
 def set_user_name(new_name: str, runtime: ToolRuntime[None, CustomState]) -> Command:
     """Set the user's name in the conversation state."""
@@ -126,6 +143,7 @@ def set_user_name(new_name: str, runtime: ToolRuntime[None, CustomState]) -> Com
     )
 
 
+# 【补写】调用上面三个工具
 def demo_state_access():
     """工具通过 runtime.state 读状态，通过 Command 写状态"""
     agent = create_agent(
@@ -146,17 +164,20 @@ def demo_state_access():
 # ---------------------------------------------------------------------------
 # ToolRuntime：读取 context（每次调用传入的只读配置，如用户 ID）
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】tools · Context：去掉了 email 字段
 USER_DATABASE = {
     "user123": {"name": "Alice Johnson", "account_type": "Premium", "balance": 5000},
     "user456": {"name": "Bob Smith", "account_type": "Standard", "balance": 1200},
 }
 
 
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:
     user_id: str
 
 
+# 【文档原代码·有改动】tools · Context：判断顺序调整；输出内容不变
 @tool
 def get_account_info(runtime: ToolRuntime[UserContext]) -> str:
     """Get the current user's account information."""
@@ -166,6 +187,7 @@ def get_account_info(runtime: ToolRuntime[UserContext]) -> str:
     return f"Account holder: {user['name']}\nType: {user['account_type']}\nBalance: ${user['balance']}"
 
 
+# 【文档原代码·有改动】tools · Context：模型改成 get_model()；thread_id 写法和问题循环有调整
 def demo_context_access():
     """context_schema + ToolRuntime[Context]：按用户返回不同数据"""
     agent = create_agent(
@@ -187,6 +209,7 @@ def demo_context_access():
 # ---------------------------------------------------------------------------
 # ToolRuntime：读写 store（跨会话的长期记忆，第 14 章详细讲）
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】tools · Long-term memory (Store)：去掉了中间变量 store
 @tool
 def get_user_info(user_id: str, runtime: ToolRuntime) -> str:
     """Look up user info."""
@@ -194,6 +217,7 @@ def get_user_info(user_id: str, runtime: ToolRuntime) -> str:
     return str(user_info.value) if user_info else "Unknown user"
 
 
+# 【文档原代码·有改动】tools · Long-term memory (Store)：去掉了中间变量 store
 @tool
 def save_user_info(user_id: str, name: str, age: int, email: str, runtime: ToolRuntime) -> str:
     """Save user info."""
@@ -201,6 +225,7 @@ def save_user_info(user_id: str, name: str, age: int, email: str, runtime: ToolR
     return "Successfully saved user info."
 
 
+# 【文档原代码·有改动】tools · Long-term memory (Store)：模型改成 get_model()；加了 print
 def demo_store_access():
     """store：第一次对话写入，第二次对话（无 checkpointer）仍能读到"""
     store = InMemoryStore()
@@ -218,6 +243,7 @@ def demo_store_access():
 # ---------------------------------------------------------------------------
 # ToolRuntime：流式进度、执行信息
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】tools · Stream writer：函数改名（文档叫 get_weather）
 @tool
 def get_weather_with_progress(city: str, runtime: ToolRuntime) -> str:
     """Get weather for a given city."""
@@ -227,6 +253,7 @@ def get_weather_with_progress(city: str, runtime: ToolRuntime) -> str:
     return f"It's always sunny in {city}!"
 
 
+# 【文档原代码·有改动】tools · Execution info：两行 print 合并
 @tool
 def log_execution_context(runtime: ToolRuntime) -> str:
     """Log execution identity information."""
@@ -236,6 +263,7 @@ def log_execution_context(runtime: ToolRuntime) -> str:
     return "done"
 
 
+# 【补写】写法参考 streaming · Custom updates
 def demo_stream_writer():
     """runtime.stream_writer 推送工具内部进度"""
     agent = create_agent(get_model(), tools=[get_weather_with_progress, log_execution_context])
@@ -251,12 +279,14 @@ def demo_stream_writer():
 # ---------------------------------------------------------------------------
 # 返回值的几种形式
 # ---------------------------------------------------------------------------
+# 【文档原代码】tools · Return an object
 @tool
 def get_weather_data(city: str) -> dict:
     """Get structured weather data for a city."""
     return {"city": city, "temperature_c": 22, "conditions": "sunny"}
 
 
+# 【文档原代码】tools · Return multimodal content
 @tool
 def capture_screenshot() -> list[dict]:
     """Capture a screenshot of the current page."""
@@ -266,16 +296,19 @@ def capture_screenshot() -> list[dict]:
     ]
 
 
+# 【文档原代码】tools · Return directly from a tool
 @tool(return_direct=True)
 def fetch_order_status(order_id: str) -> str:
     """Fetch the current status of a customer order."""
     return f"Order {order_id} is shipped and will arrive in 2 days."
 
 
+# 【补写】给 fetch_and_store_order 用的 state
 class OrderState(AgentState):
     last_order_status: str
 
 
+# 【文档原代码】tools · Return a Command with return\_direct
 @tool(return_direct=True)
 def fetch_and_store_order(order_id: str, runtime: ToolRuntime) -> Command:
     """Fetch order status and store it in state."""
@@ -288,6 +321,7 @@ def fetch_and_store_order(order_id: str, runtime: ToolRuntime) -> Command:
     )
 
 
+# 【文档原代码·有改动】tools · Tool return values：调用几个返回值工具，agent 调用部分来自文档；模型改成 get_model()
 def demo_return_values():
     """返回 dict、多模态列表，以及 return_direct 跳过最后一次模型调用"""
     print(get_weather_data.invoke({"city": "Tokyo"}))
@@ -305,6 +339,7 @@ def demo_return_values():
 # ---------------------------------------------------------------------------
 # 错误处理与动态工具
 # ---------------------------------------------------------------------------
+# 【补写】演示错误处理用的工具
 @tool
 def flaky_tool(x: int) -> str:
     """A tool that fails for negative numbers."""
@@ -313,6 +348,7 @@ def flaky_tool(x: int) -> str:
     return f"ok: {x}"
 
 
+# 【文档原代码】tools · Error handling
 @wrap_tool_call
 def handle_tool_errors(
     request: ToolCallRequest,
@@ -328,6 +364,7 @@ def handle_tool_errors(
         )
 
 
+# 【补写】调用 handle_tool_errors
 def demo_error_handling():
     """wrap_tool_call 把异常变成模型能读懂的 ToolMessage"""
     agent = create_agent(get_model(), tools=[flaky_tool], middleware=[handle_tool_errors])
@@ -338,22 +375,26 @@ def demo_error_handling():
     print(last_text(result))
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def public_search(query: str) -> str:
     """Public search anyone can use."""
     return f"public results for {query}"
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def private_search(query: str) -> str:
     """Search private records (requires authentication)."""
     return f"private results for {query}"
 
 
+# 【补写】文档读取了 authenticated，但没定义 state
 class AuthState(AgentState):
     authenticated: bool
 
 
+# 【文档原代码·有改动】tools · Dynamic tool selection：去掉了按消息数限制工具的分支；合并变量
 @wrap_model_call
 def state_based_tools(
     request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]
@@ -365,6 +406,7 @@ def state_based_tools(
     return handler(request)
 
 
+# 【文档原代码】tools · Dynamic tool selection
 @tool
 def calculate_tip(bill_amount: float, tip_percentage: float = 20.0) -> str:
     """Calculate the tip amount for a bill."""
@@ -372,19 +414,23 @@ def calculate_tip(bill_amount: float, tip_percentage: float = 20.0) -> str:
     return f"Tip: ${tip:.2f}, Total: ${bill_amount + tip:.2f}"
 
 
+# 【文档原代码·有改动】tools · Dynamic tool selection：wrap_model_call 去掉中间变量
 class DynamicToolMiddleware(AgentMiddleware):
     """Middleware that registers and handles dynamic tools."""
 
+    # 【文档原代码·有改动】tools · Dynamic tool selection：去掉中间变量 updated
     def wrap_model_call(self, request: ModelRequest, handler):
         # 运行时追加工具（可以来自 MCP、数据库……）
         return handler(request.override(tools=[*request.tools, calculate_tip]))
 
+    # 【文档原代码】tools · Dynamic tool selection
     def wrap_tool_call(self, request: ToolCallRequest, handler):
         if request.tool_call["name"] == "calculate_tip":
             return handler(request.override(tool=calculate_tip))
         return handler(request)
 
 
+# 【文档原代码·有改动】tools · Dynamic tool selection：第二段 agent 来自文档，模型改成 get_model()；第一段调用是补写
 def demo_dynamic_tools():
     """按 state 过滤工具；运行时动态注册新工具"""
     agent = create_agent(
@@ -404,5 +450,6 @@ def demo_dynamic_tools():
     print("动态工具：", last_text(result))
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

@@ -15,6 +15,11 @@
     store + 语义检索(14,17)  dynamic_prompt(9)  SummarizationMiddleware(6,10)
     ModelRetry / ToolCallLimit / PII(10)  自定义 wrap_tool_call(11)  护栏(12)
     HumanInTheLoop(13)  结构化输出(8)  子 agent(16)  stream_events v3(7)
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import sys
@@ -53,11 +58,13 @@ from common import FAKE, get_model, get_small_model  # noqa: E402
 # ---------------------------------------------------------------------------
 # Context 与 Store
 # ---------------------------------------------------------------------------
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:
     user_id: str
 
 
+# 【补写】创建带向量索引的 store
 def make_store() -> InMemoryStore:
     """笔记会被向量化，支持语义检索（第 14、17 章）。"""
     if FAKE:
@@ -69,10 +76,12 @@ def make_store() -> InMemoryStore:
     return InMemoryStore(index={"embed": embeddings, "dims": len(embeddings.embed_query("x")), "fields": ["text"]})
 
 
+# 【补写】笔记的 namespace
 def notes_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "notes")
 
 
+# 【补写】用户资料的 namespace
 def profile_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "profile")
 
@@ -80,6 +89,7 @@ def profile_ns(runtime) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # 工具
 # ---------------------------------------------------------------------------
+# 【补写】学习助手的工具（ToolRuntime 写法参考 tools 页）
 @tool
 def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     """Save a study note for the user. Use this when the user asks you to remember or note something."""
@@ -88,6 +98,7 @@ def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     return f"Saved note {key}."
 
 
+# 【补写】学习助手的工具（store.search 写法参考 long-term-memory 页）
 @tool
 def search_notes(query: str, runtime: ToolRuntime[UserContext]) -> str:
     """Semantic search over the user's saved notes."""
@@ -97,6 +108,7 @@ def search_notes(query: str, runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{h.key}] {h.value['text']}" for h in hits)
 
 
+# 【补写】学习助手的工具
 @tool
 def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     """List all of the user's notes with their IDs."""
@@ -104,6 +116,7 @@ def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{i.key}] {i.value['text']}" for i in items) or "No notes yet."
 
 
+# 【补写】学习助手的工具
 @tool
 def delete_note(note_id: str, runtime: ToolRuntime[UserContext]) -> str:
     """Delete a note by its ID. Requires human approval."""
@@ -111,6 +124,7 @@ def delete_note(note_id: str, runtime: ToolRuntime[UserContext]) -> str:
     return f"Deleted note {note_id}."
 
 
+# 【补写】学习助手的工具（读写 store 写法参考 context-engineering · Writes）
 @tool
 def update_profile(name: str | None = None, answer_style: str | None = None, *, runtime: ToolRuntime[UserContext]) -> str:
     """Remember the user's name and/or preferred answer style (e.g. 'concise', 'detailed')."""
@@ -124,17 +138,20 @@ def update_profile(name: str | None = None, answer_style: str | None = None, *, 
     return f"Profile updated: {profile}"
 
 
+# 【补写】出题的 schema（写法参考 models · Structured output）
 class QuizQuestion(BaseModel):
     question: str
     choices: list[str] = Field(description="Exactly 4 choices")
     answer: Literal["A", "B", "C", "D"]
 
 
+# 【补写】出题的 schema
 class Quiz(BaseModel):
     topic: str
     questions: list[QuizQuestion]
 
 
+# 【补写】出题工具
 @tool
 def make_quiz(topic: str, n: int = 3) -> str:
     """Create a multiple-choice quiz about a topic."""
@@ -149,6 +166,7 @@ def make_quiz(topic: str, n: int = 3) -> str:
     return "\n".join(lines)
 
 
+# 【补写】写法参考 multi-agent/subagents · Basic implementation
 def make_research_tool():
     """子 agent（第 16 章）：专门负责"研究"，主 agent 只看到它的结论。"""
     researcher = create_agent(
@@ -158,6 +176,7 @@ def make_research_tool():
         name="researcher",
     )
 
+    # 【补写】子 agent 包装成工具
     @tool("research", description="Delegate a research question to the researcher subagent.")
     def research(question: str) -> str:
         result = researcher.invoke({"messages": [{"role": "user", "content": question}]})
@@ -169,6 +188,7 @@ def make_research_tool():
 # ---------------------------------------------------------------------------
 # 中间件
 # ---------------------------------------------------------------------------
+# 【补写】写法参考 context-engineering · System Prompt
 @dynamic_prompt
 def personalized_prompt(request: ModelRequest) -> str:
     """根据长期记忆里的用户资料生成系统提示词（第 9 章）。"""
@@ -186,6 +206,7 @@ def personalized_prompt(request: ModelRequest) -> str:
     return "\n".join(lines)
 
 
+# 【补写】写法参考 guardrails · Before agent guardrails
 @before_agent(can_jump_to=["end"])
 def block_off_topic(state, runtime):
     """简单的确定性护栏（第 12 章）。"""
@@ -195,6 +216,7 @@ def block_off_topic(state, runtime):
     return None
 
 
+# 【补写】写法参考 middleware/custom · Tool call monitoring
 @wrap_tool_call
 def log_tool_calls(request: ToolCallRequest, handler: Callable[[ToolCallRequest], ToolMessage | Command]):
     """自定义包裹式中间件（第 11 章）：打印每次工具调用。"""
@@ -202,6 +224,7 @@ def log_tool_calls(request: ToolCallRequest, handler: Callable[[ToolCallRequest]
     return handler(request)
 
 
+# 【补写】组装学习助手
 def build_agent(store: InMemoryStore):
     return create_agent(
         model=get_model(),
@@ -226,6 +249,7 @@ def build_agent(store: InMemoryStore):
 # ---------------------------------------------------------------------------
 # 命令行界面
 # ---------------------------------------------------------------------------
+# 【补写】流式聊天一轮，处理审批
 def stream_turn(agent, payload, config, context) -> None:
     """流式打印一轮回复；遇到人工审批就询问用户，然后继续（第 7、13 章）。"""
     while True:
@@ -244,6 +268,7 @@ def stream_turn(agent, payload, config, context) -> None:
         payload = Command(resume={"decisions": decisions})
 
 
+# 【补写】命令行主循环
 def main() -> None:
     store = make_store()
     agent = build_agent(store)
@@ -271,5 +296,6 @@ def main() -> None:
         stream_turn(agent, {"messages": [{"role": "user", "content": text}]}, config, context)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     main()

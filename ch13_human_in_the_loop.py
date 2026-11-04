@@ -5,6 +5,13 @@
 流程：agent 想调用被拦截的工具 → 产生 interrupt 并暂停（state 存进 checkpointer）
       → 人做决策 → agent.invoke(Command(resume=...)) 从断点继续。
 四种决策：approve（批准）/ edit（改参数后执行）/ reject（拒绝并说明原因）/ respond（人直接给出工具结果）
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 import json
@@ -19,27 +26,32 @@ from pydantic import ValidationError
 from common import get_model, run_demos
 
 
+# 【文档原代码】human-in-the-loop · Pause once per tool call
 @tool
 def write_file(path: str, content: str) -> str:
     """Write content to a file."""
     return f"Wrote {len(content)} characters to {path}"
 
 
+# 【文档原代码·有改动】human-in-the-loop · Pause once per tool call：按是否 DELETE 返回不同结果
 @tool
 def execute_sql(query: str) -> str:
     """Run a SQL query."""
     return "Deleted 42 rows" if "DELETE" in query.upper() else "3 rows"
 
 
+# 【文档原代码】human-in-the-loop · Pause once per tool call
 @tool
 def read_data(table: str) -> str:
     """Read rows from a table."""
     return f"3 rows from {table}"
 
 
+# 【补写】本章工具列表
 TOOLS = [write_file, execute_sql, read_data]
 
 
+# 【补写】在终端里询问审批决策
 def _ask_decision(action: dict, allowed: list[str]) -> dict:
     """在终端里让你亲自做决策。"""
     print(f"\n⚠️  {action['description']}")
@@ -56,6 +68,7 @@ def _ask_decision(action: dict, allowed: list[str]) -> dict:
     return {"type": "respond", "message": input("你给出的工具结果: ")}
 
 
+# 【文档原代码·有改动】human-in-the-loop · Responding to interrupts：模型改成 get_model()；固定决策改成终端交互，并循环处理中断
 def demo_batch_mode():
     """默认模式：一次中断里包含本轮所有待审批的调用，按顺序给出决策"""
     agent = create_agent(
@@ -87,16 +100,19 @@ def demo_batch_mode():
     print("\n最终回答：", result.value["messages"][-1].text)
 
 
+# 【文档原代码·有改动】human-in-the-loop · Conditional interrupts：去掉中间变量 path
 def writes_outside_workspace(request: ToolCallRequest) -> bool:
     """Pause writes to paths outside the workspace directory."""
     return not request.tool_call["args"].get("path", "").startswith("/workspace/")
 
 
+# 【文档原代码·有改动】human-in-the-loop · Conditional interrupts：去掉中间变量 query
 def is_write_query(request: ToolCallRequest) -> bool:
     """Pause SQL that isn't a read-only SELECT."""
     return not request.tool_call["args"].get("query", "").lstrip().upper().startswith("SELECT")
 
 
+# 【文档原代码·有改动】human-in-the-loop · Conditional interrupts：模型改成 get_model()；调用部分是补写
 def demo_conditional_interrupts():
     """when=...：只有满足条件的调用才需要审批（只读 SELECT 自动放行）"""
     agent = create_agent(
@@ -124,6 +140,7 @@ def demo_conditional_interrupts():
         print(result.value["messages"][-1].text)
 
 
+# 【文档原代码·有改动】human-in-the-loop · Pause once per tool call：合并本节和 Resume / Correct 几段；模型改成 get_model()
 def demo_per_call_mode():
     """interrupt_mode="per_call"：每个调用一个 interrupt，按 interrupt.id 分别答复"""
     agent = create_agent(
@@ -173,6 +190,7 @@ def demo_per_call_mode():
         print(result.value["messages"][-1].text)
 
 
+# 【文档原代码·有改动】human-in-the-loop · Streaming with human-in-the-loop：模型改成 get_model()；只有中断时才恢复；agent 配置是补写
 def demo_streaming_with_hitl():
     """stream_events v3 + stream.interrupted / stream.interrupts"""
     agent = create_agent(
@@ -199,5 +217,6 @@ def demo_streaming_with_hitl():
     print()
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

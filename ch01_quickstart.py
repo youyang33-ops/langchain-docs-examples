@@ -6,6 +6,13 @@
 
 核心公式：Agent = Model + Harness（提示词 + 工具 + 中间件）。
 create_agent 就是 LangChain 提供的那个 harness。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 import urllib.error
@@ -21,11 +28,13 @@ from common import get_model, last_text, run_demos
 # ---------------------------------------------------------------------------
 # Overview：最小可运行的 agent
 # ---------------------------------------------------------------------------
+# 【文档原代码】overview · Create an agent
 def get_weather(city: str) -> str:
     """Get weather for a given city."""
     return f"It's always sunny in {city}!"
 
 
+# 【文档原代码·有改动】overview · Create an agent：包成函数；模型改成 get_model()
 def demo_basic_agent():
     """最小 agent：一个模型 + 一个普通函数工具"""
     agent = create_agent(
@@ -43,6 +52,7 @@ def demo_basic_agent():
 # ---------------------------------------------------------------------------
 # Quickstart：真实场景的 agent（联网抓取文本 + 记忆）
 # ---------------------------------------------------------------------------
+# 【文档原代码】quickstart · Build a real-world agent
 SYSTEM_PROMPT = """You are a literary data assistant.
 
 ## Capabilities
@@ -51,6 +61,7 @@ SYSTEM_PROMPT = """You are a literary data assistant.
 Do not guess line counts or positions—ground them in tool results from the saved file."""
 
 
+# 【文档原代码·有改动】quickstart · Build a real-world agent：docstring 排版调整；最后两行合并成一行
 @tool
 def fetch_text_from_url(url: str) -> str:
     """Fetch the document from a URL."""
@@ -66,6 +77,7 @@ def fetch_text_from_url(url: str) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
+# 【文档原代码·有改动】quickstart · Build a real-world agent：模型改成 get_model()；问题文字缩短；去掉 create_deep_agent 对比（放到 ch16）
 def demo_real_world_agent():
     """真实 agent：调参后的模型 + 联网工具 + checkpointer 记忆"""
     # 文档里各供应商的参数都类似：temperature / timeout / max_tokens
@@ -100,5 +112,6 @@ If you cannot **verify** an exact answer with your tools, use `null` and explain
     # 见 ch16_multi_agent.py 的 demo_deep_agent。
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

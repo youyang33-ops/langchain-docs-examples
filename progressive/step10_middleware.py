@@ -8,6 +8,11 @@
     @wrap_tool_call          自定义包裹式中间件：给每次工具调用计时        （对应 ch10、ch11）
 运行：python progressive/step10_middleware.py
 注意中间件的顺序：列表靠前的在外层。dynamic_prompt 放最前面，计时放最后（离工具最近）。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import os
@@ -42,6 +47,7 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 from common import FAKE, get_model, get_small_model  # noqa: E402
 
+# 【补写】学习助手的提示词
 BASE_PROMPT = (
     "You are a friendly study assistant for someone learning LangChain. Reply in the user's language.\n"
     "Use save_note when the user asks you to remember something, and list_notes to show notes.\n"
@@ -51,19 +57,23 @@ BASE_PROMPT = (
 )
 
 
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:
     user_id: str
 
 
+# 【补写】笔记的 namespace
 def notes_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "notes")
 
 
+# 【补写】用户资料的 namespace
 def profile_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "profile")
 
 
+# 【补写】学习助手的工具（ToolRuntime 写法参考 tools 页）
 @tool
 def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     """Save a study note for the user."""
@@ -72,6 +82,7 @@ def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     return f"Saved note {key}."
 
 
+# 【补写】学习助手的工具
 @tool
 def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     """List all of the user's notes with their IDs."""
@@ -79,6 +90,7 @@ def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{i.key}] {i.value['text']}" for i in items) or "No notes yet."
 
 
+# 【补写】学习助手的工具（store.search 写法参考 long-term-memory 页）
 @tool
 def search_notes(query: str, runtime: ToolRuntime[UserContext]) -> str:
     """Semantic search over the user's saved notes. Returns the most relevant notes."""
@@ -88,6 +100,7 @@ def search_notes(query: str, runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{h.key}] (score {h.score:.2f}) {h.value['text']}" for h in hits)
 
 
+# 【补写】学习助手的工具（读写 store 写法参考 context-engineering · Writes）
 @tool
 def update_profile(
     name: str | None = None, answer_style: str | None = None, *, runtime: ToolRuntime[UserContext]
@@ -103,6 +116,7 @@ def update_profile(
     return f"Profile updated: {profile}"
 
 
+# 【补写】出题的 schema（写法参考 models · Structured output）
 class QuizQuestion(BaseModel):
     question: str
     choices: list[str] = Field(description="Exactly 4 answer choices, without letter prefixes")
@@ -110,11 +124,13 @@ class QuizQuestion(BaseModel):
     explanation: str = Field(description="One sentence explaining the correct answer")
 
 
+# 【补写】出题的 schema
 class Quiz(BaseModel):
     topic: str
     questions: list[QuizQuestion]
 
 
+# 【补写】出题工具
 @tool
 def make_quiz(topic: str, n: int = 3) -> str:
     """Create a multiple-choice quiz about a topic."""
@@ -131,6 +147,7 @@ def make_quiz(topic: str, n: int = 3) -> str:
     return "\n".join(lines)
 
 
+# 【补写】写法参考 context-engineering · System Prompt
 @dynamic_prompt
 def personalized_prompt(request: ModelRequest) -> str:
     profile = request.runtime.store.get(profile_ns(request.runtime), "me")
@@ -144,6 +161,7 @@ def personalized_prompt(request: ModelRequest) -> str:
 
 
 # ★ 新增：包裹式中间件。handler(request) 才是真正执行工具，前后可以加任何逻辑
+# 【补写】写法参考 middleware/custom · Tool call monitoring
 @wrap_tool_call
 def time_tool_calls(request: ToolCallRequest, handler: Callable[[ToolCallRequest], ToolMessage | Command]):
     start = time.perf_counter()
@@ -152,12 +170,14 @@ def time_tool_calls(request: ToolCallRequest, handler: Callable[[ToolCallRequest
     return result
 
 
+# 【补写】真实模型 / 假向量二选一
 def get_embeddings():
     if FAKE:
         return DeterministicFakeEmbedding(size=256)
     return init_embeddings(os.getenv("LC_EMBEDDINGS", "openai:text-embedding-3-small"))
 
 
+# 【补写】创建带向量索引的 store
 def make_store() -> InMemoryStore:
     embeddings = get_embeddings()
     dims = len(embeddings.embed_query("dimension probe"))
@@ -165,6 +185,7 @@ def make_store() -> InMemoryStore:
     return InMemoryStore(index={"embed": embeddings, "dims": dims, "fields": ["text"]})
 
 
+# 【补写】组装学习助手
 def build_agent(store: InMemoryStore):
     return create_agent(
         model=get_model(),
@@ -182,10 +203,12 @@ def build_agent(store: InMemoryStore):
     )
 
 
+# 【补写】生成新的 thread_id
 def new_config() -> dict:
     return {"configurable": {"thread_id": uuid.uuid4().hex}}
 
 
+# 【补写】聊天一轮
 def chat(agent, text: str, config: dict, context: UserContext) -> None:
     stream = agent.stream_events(
         {"messages": [{"role": "user", "content": text}]}, config, context=context, version="v3"
@@ -202,12 +225,14 @@ def chat(agent, text: str, config: dict, context: UserContext) -> None:
     print()
 
 
+# 【补写】打印长期记忆
 def show_memory(store, user_id: str) -> None:
     for category in ("profile", "notes"):
         for item in store.search((user_id, category), limit=50):
             print(f"  {category:<8} {item.key}: {item.value}")
 
 
+# 【补写】命令行主循环
 def main() -> None:
     store = make_store()
     agent = build_agent(store)
@@ -237,5 +262,6 @@ def main() -> None:
             chat(agent, text, config, context)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     main()

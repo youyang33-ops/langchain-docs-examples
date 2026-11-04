@@ -9,6 +9,13 @@
     Store   —— 跨对话的长期数据（用户偏好等）
     Context —— 每次调用传入的只读配置（用户 ID、角色、环境……）
 可以用它们动态决定：系统提示词 / 注入的消息 / 可用工具 / 使用的模型 / 输出格式。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from collections.abc import Callable
@@ -36,16 +43,19 @@ from common import FAKE, get_model, get_small_model, last_text, run_demos
 # ---------------------------------------------------------------------------
 # Runtime：在工具与中间件里拿到 context / store / 执行信息
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】runtime · Inside middleware：文档叫 Context，这里改名
 @dataclass
 class NameContext:
     user_name: str
 
 
+# 【文档原代码·有改动】runtime · Inside middleware：文档叫 dynamic_system_prompt；去掉中间变量
 @dynamic_prompt
 def name_prompt(request: ModelRequest) -> str:
     return f"You are a helpful assistant. Address the user as {request.runtime.context.user_name}."
 
 
+# 【文档原代码·有改动】runtime · Inside middleware：Context 改名；print 加前缀；多打印一行 thread（来自 Execution info 一节）
 @before_model
 def log_before_model(state: AgentState, runtime: Runtime[NameContext]) -> dict | None:
     print(f"[before_model] Processing request for user: {runtime.context.user_name}")
@@ -53,12 +63,14 @@ def log_before_model(state: AgentState, runtime: Runtime[NameContext]) -> dict |
     return None
 
 
+# 【文档原代码·有改动】runtime · Inside middleware：Context 改名；print 加前缀
 @after_model
 def log_after_model(state: AgentState, runtime: Runtime[NameContext]) -> dict | None:
     print(f"[after_model] Completed request for user: {runtime.context.user_name}")
     return None
 
 
+# 【文档原代码·有改动】runtime · Inside middleware：模型改成 get_model()；tools 改成 []；加了 print
 def demo_runtime_in_middleware():
     """中间件通过 request.runtime / runtime 读取 context"""
     agent = create_agent(
@@ -74,11 +86,13 @@ def demo_runtime_in_middleware():
     print(last_text(result))
 
 
+# 【文档原代码·有改动】runtime · Inside tools：文档叫 Context，这里改名
 @dataclass
 class UserIdContext:
     user_id: str
 
 
+# 【文档原代码·有改动】runtime · Inside tools：Context 改名；合并 if；去掉中间变量
 @tool
 def fetch_user_email_preferences(runtime: ToolRuntime[UserIdContext]) -> str:
     """Fetch the user's email preferences from the store."""
@@ -88,6 +102,7 @@ def fetch_user_email_preferences(runtime: ToolRuntime[UserIdContext]) -> str:
     return preferences
 
 
+# 【补写】调用 fetch_user_email_preferences
 def demo_runtime_in_tools():
     """工具里同时用 context（谁）和 store（他的偏好）"""
     store = InMemoryStore()
@@ -105,6 +120,7 @@ def demo_runtime_in_tools():
 # ---------------------------------------------------------------------------
 # 系统提示词：按 State / Store / Context 动态生成
 # ---------------------------------------------------------------------------
+# 【补写】把本章各段的 Context 字段合并成一个类，并加了默认值
 @dataclass
 class AppContext:
     user_id: str = "u1"
@@ -116,6 +132,7 @@ class AppContext:
     compliance_frameworks: list[str] = field(default_factory=lambda: ["GDPR"])
 
 
+# 【文档原代码·有改动】context-engineering · System Prompt：去掉中间变量 message_count
 @dynamic_prompt
 def state_aware_prompt(request: ModelRequest) -> str:
     base = "You are a helpful assistant."
@@ -124,6 +141,7 @@ def state_aware_prompt(request: ModelRequest) -> str:
     return base
 
 
+# 【文档原代码·有改动】context-engineering · System Prompt：变量改名、合并
 @dynamic_prompt
 def store_aware_prompt(request: ModelRequest) -> str:
     base = "You are a helpful assistant."
@@ -133,6 +151,7 @@ def store_aware_prompt(request: ModelRequest) -> str:
     return base
 
 
+# 【文档原代码·有改动】context-engineering · System Prompt：用 ctx 变量代替分别读取
 @dynamic_prompt
 def context_aware_prompt(request: ModelRequest) -> str:
     ctx = request.runtime.context
@@ -146,6 +165,7 @@ def context_aware_prompt(request: ModelRequest) -> str:
     return base
 
 
+# 【补写】依次运行上面三个提示词中间件
 def demo_dynamic_system_prompt():
     """三个 @dynamic_prompt：分别读 State、Store、Context"""
     store = InMemoryStore()
@@ -164,10 +184,12 @@ def demo_dynamic_system_prompt():
 # ---------------------------------------------------------------------------
 # 注入消息：上传的文件、写作风格、合规要求
 # ---------------------------------------------------------------------------
+# 【补写】文档读取了 uploaded_files，但没定义 state
 class FileState(AgentState):
     uploaded_files: NotRequired[list[dict]]
 
 
+# 【文档原代码·有改动】context-engineering · Messages：循环改成 join；去掉中间变量
 @wrap_model_call
 def inject_file_context(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     """Inject context about files user has uploaded this session."""
@@ -179,6 +201,7 @@ def inject_file_context(request: ModelRequest, handler: Callable[[ModelRequest],
     return handler(request)
 
 
+# 【文档原代码·有改动】context-engineering · Messages：去掉中间变量；style 文本去掉了 example_email
 @wrap_model_call
 def inject_writing_style(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     """Inject user's email writing style from Store."""
@@ -195,6 +218,7 @@ def inject_writing_style(request: ModelRequest, handler: Callable[[ModelRequest]
     return handler(request)
 
 
+# 【文档原代码·有改动】context-engineering · Messages：用 ctx 变量；append 改成 +=；HIPAA 只保留一条规则
 @wrap_model_call
 def inject_compliance_rules(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     """Inject compliance constraints from Runtime Context."""
@@ -212,6 +236,7 @@ def inject_compliance_rules(request: ModelRequest, handler: Callable[[ModelReque
     return handler(request)
 
 
+# 【补写】组合上面三个中间件
 def demo_inject_messages():
     """wrap_model_call + request.override(messages=...) 注入额外上下文"""
     store = InMemoryStore()
@@ -237,24 +262,28 @@ def demo_inject_messages():
 # ---------------------------------------------------------------------------
 # 选择工具 / 模型 / 输出格式
 # ---------------------------------------------------------------------------
+# 【文档原代码】human-in-the-loop · Pause once per tool call
 @tool
 def read_data(table: str) -> str:
     """Read rows from a table."""
     return f"3 rows from {table}"
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def write_data(table: str, row: str) -> str:
     """Write a row to a table."""
     return f"wrote {row} to {table}"
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def delete_data(table: str) -> str:
     """Delete a table."""
     return f"deleted {table}"
 
 
+# 【文档原代码·有改动】tools · Dynamic tool selection：分支写法简化；读取 role 的逻辑合并成一行
 @wrap_model_call
 def context_based_tools(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     """Filter tools based on Runtime Context permissions."""
@@ -266,6 +295,7 @@ def context_based_tools(request: ModelRequest, handler: Callable[[ModelRequest],
     return handler(request)
 
 
+# 【补写】分别用 viewer 和 admin 调用
 def demo_select_tools():
     """按用户角色过滤工具：viewer 只能 read_*"""
     agent = create_agent(
@@ -282,10 +312,12 @@ def demo_select_tools():
         print(f"{role}: {last_text(result)}")
 
 
+# 【文档原代码·有改动】context-engineering · Model：模型改成 get_model / get_small_model，只分两档；循环调用是补写
 def demo_select_model():
     """按 context 的付费等级选择模型"""
     premium_model, budget_model = get_model(), get_small_model()
 
+    # 【文档原代码·有改动】context-engineering · Model：只分 budget / 其他两档；去掉 environment 判断；加了 print
     @wrap_model_call
     def context_based_model(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
         """Select model based on Runtime Context."""
@@ -299,12 +331,14 @@ def demo_select_model():
         agent.invoke({"messages": [{"role": "user", "content": "hi"}]}, context=AppContext(cost_tier=tier))
 
 
+# 【文档原代码】context-engineering · Selecting formats
 class SimpleResponse(BaseModel):
     """Simple response for early conversation."""
 
     answer: str = Field(description="A brief answer")
 
 
+# 【文档原代码】context-engineering · Selecting formats
 class DetailedResponse(BaseModel):
     """Detailed response for established conversation."""
 
@@ -313,6 +347,7 @@ class DetailedResponse(BaseModel):
     confidence: float = Field(description="Confidence score 0-1")
 
 
+# 【文档原代码·有改动】context-engineering · Selecting formats：if/else 改成一行条件表达式
 @wrap_model_call
 def state_based_output(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     """Select output format based on State."""
@@ -320,6 +355,7 @@ def state_based_output(request: ModelRequest, handler: Callable[[ModelRequest], 
     return handler(request.override(response_format=fmt))
 
 
+# 【补写】分别用短对话、长对话调用，加了假模型跳过
 def demo_select_response_format():
     """对话早期用简单格式，后期用详细格式"""
     if FAKE:
@@ -338,10 +374,12 @@ def demo_select_response_format():
 # ---------------------------------------------------------------------------
 # 工具写入 State / Store
 # ---------------------------------------------------------------------------
+# 【补写】给 authenticate_user 用的 state
 class AuthState(AgentState):
     authenticated: NotRequired[bool]
 
 
+# 【文档原代码·有改动】context-engineering · Writes：Command 里加了 ToolMessage（否则消息历史不合法）；if/else 合并
 @tool
 def authenticate_user(password: str, runtime: ToolRuntime) -> Command:
     """Authenticate user and update State."""
@@ -354,6 +392,7 @@ def authenticate_user(password: str, runtime: ToolRuntime) -> Command:
     })
 
 
+# 【文档原代码·有改动】context-engineering · Writes：Context 改名；去掉中间变量 store
 @tool
 def save_preference(preference_key: str, preference_value: str, runtime: ToolRuntime[AppContext]) -> str:
     """Save user preference to Store."""
@@ -365,6 +404,7 @@ def save_preference(preference_key: str, preference_value: str, runtime: ToolRun
     return f"Saved preference: {preference_key} = {preference_value}"
 
 
+# 【补写】调用 authenticate_user 和 save_preference
 def demo_tool_writes():
     """工具用 Command 写 State，用 runtime.store 写 Store"""
     store = InMemoryStore()
@@ -384,5 +424,6 @@ def demo_tool_writes():
     print("store =", store.get(("preferences",), "u1"))
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

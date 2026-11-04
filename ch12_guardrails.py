@@ -6,6 +6,13 @@
 - 确定性（关键词、正则）：快、便宜、可预测
 - 基于模型（让另一个 LLM 审查）：能理解语义，但更慢更贵
 放的位置：before_agent（拦截输入）/ after_agent（审查最终输出）/ 工具调用前（人工审批）。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from typing import Any
@@ -29,34 +36,40 @@ from langgraph.types import Command
 from common import FAKE, get_model, get_small_model, last_text, run_demos
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def search_tool(query: str) -> str:
     """Search the web."""
     return f"Results for {query}"
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def calculator_tool(expression: str) -> str:
     """Evaluate a simple arithmetic expression."""
     return str(eval(expression, {"__builtins__": {}}))
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool("send_email")
 def send_email_tool(to: str, body: str) -> str:
     """Send an email."""
     return f"sent to {to}"
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool("delete_database")
 def delete_database_tool() -> str:
     """Delete the whole database."""
     return "database deleted"
 
 
+# 【补写】调用 agent 的小工具
 def _ask(agent, text: str, **kwargs):
     return agent.invoke({"messages": [{"role": "user", "content": text}]}, **kwargs)
 
 
+# 【文档原代码·有改动】guardrails · PII detection：模型改成 get_model()；工具改了；加了 print
 def demo_pii():
     """内置 PII 护栏：脱敏邮箱、遮盖信用卡、拦截 API key"""
     agent = create_agent(
@@ -72,6 +85,7 @@ def demo_pii():
     print("模型实际看到的输入：", result["messages"][0].text)
 
 
+# 【文档原代码·有改动】guardrails · Human-in-the-loop：模型改成 get_model()；改用 version="v2" 并判断是否中断
 def demo_human_approval():
     """人工审批护栏：敏感工具执行前暂停，批准后继续"""
     agent = create_agent(
@@ -95,13 +109,16 @@ def demo_human_approval():
 # ---------------------------------------------------------------------------
 # 自定义护栏：before_agent 关键词过滤
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】guardrails · Before agent guardrails：两个判断合并；content 改成 .text；循环方式不变
 class ContentFilterMiddleware(AgentMiddleware):
     """Deterministic guardrail: Block requests containing banned keywords."""
 
+    # 【文档原代码】guardrails · Before agent guardrails
     def __init__(self, banned_keywords: list[str]):
         super().__init__()
         self.banned_keywords = [kw.lower() for kw in banned_keywords]
 
+    # 【文档原代码·有改动】guardrails · Before agent guardrails：两个判断合并；content 改成 .text
     @hook_config(can_jump_to=["end"])
     def before_agent(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         if not state["messages"] or state["messages"][0].type != "human":
@@ -119,9 +136,11 @@ class ContentFilterMiddleware(AgentMiddleware):
         return None
 
 
+# 【文档原代码】guardrails · Before agent guardrails
 banned_keywords = ["hack", "exploit", "malware"]
 
 
+# 【文档原代码·有改动】guardrails · Before agent guardrails：判断合并；循环改成 any；回复文字缩短；docstring 改了
 @before_agent(can_jump_to=["end"])
 def content_filter(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
     """同一个护栏的装饰器写法"""
@@ -136,6 +155,7 @@ def content_filter(state: AgentState, runtime: Runtime) -> dict[str, Any] | None
     return None
 
 
+# 【文档原代码·有改动】guardrails · Before agent guardrails：模型改成 get_model()；两种写法合并成循环
 def demo_before_agent_filter():
     """类写法与装饰器写法的关键词过滤"""
     for mw in (ContentFilterMiddleware(banned_keywords=banned_keywords), content_filter):
@@ -146,13 +166,16 @@ def demo_before_agent_filter():
 # ---------------------------------------------------------------------------
 # 自定义护栏：after_agent 用模型审查输出
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】guardrails · After agent guardrails：模型改成 get_small_model()；判断合并；content 改成 .text；加了 print
 class SafetyGuardrailMiddleware(AgentMiddleware):
     """Model-based guardrail: Use an LLM to evaluate response safety."""
 
+    # 【文档原代码·有改动】guardrails · After agent guardrails：模型改成 get_small_model()
     def __init__(self):
         super().__init__()
         self.safety_model = get_small_model()
 
+    # 【文档原代码·有改动】guardrails · After agent guardrails：判断合并；content 改成 .text；加了 print
     @hook_config(can_jump_to=["end"])
     def after_agent(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         if not state["messages"] or not isinstance(state["messages"][-1], AIMessage):
@@ -169,10 +192,12 @@ Response: {last_message.text}"""
         return None
 
 
+# 【文档原代码·有改动】guardrails · After agent guardrails：包成工厂函数，让模型延迟初始化
 def make_safety_guardrail():
     """同一个护栏的装饰器写法"""
     safety_model = get_small_model()
 
+    # 【文档原代码·有改动】guardrails · After agent guardrails：判断合并；提示词写成一行；content 改成 .text
     @after_agent(can_jump_to=["end"])
     def safety_guardrail(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
         if not state["messages"] or not isinstance(state["messages"][-1], AIMessage):
@@ -189,6 +214,7 @@ def make_safety_guardrail():
     return safety_guardrail
 
 
+# 【文档原代码·有改动】guardrails · After agent guardrails：模型改成 get_model()；两种写法合并成循环；问题改了
 def demo_after_agent_safety():
     """after_agent：最终回答交给小模型审查（类写法与装饰器写法）"""
     for mw in (SafetyGuardrailMiddleware(), make_safety_guardrail()):
@@ -196,6 +222,7 @@ def demo_after_agent_safety():
         print(last_text(_ask(agent, "Give me a fun fact about cats.")))
 
 
+# 【文档原代码·有改动】guardrails · Combine multiple guardrails：模型改成 get_model()；两个 PII 合并成一个（同名中间件不能重复）；加了调用
 def demo_layered_guardrails():
     """多层护栏组合：关键词 → PII → 人工审批 → 模型审查"""
     agent = create_agent(
@@ -219,5 +246,6 @@ def demo_layered_guardrails():
         print("（假模型模式：安全审查结果无意义）")
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

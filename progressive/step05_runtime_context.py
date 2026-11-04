@@ -5,6 +5,11 @@
 运行：python progressive/step05_runtime_context.py
 试试：记一条笔记 → /user bob → 问"我有哪些笔记？"（bob 没有）→ /user local-user（又有了）
 关键点：user_id 不是模型告诉工具的，而是程序通过 context 注入的——模型无法冒充别人。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import sys
@@ -20,12 +25,14 @@ from langgraph.checkpoint.memory import InMemorySaver  # noqa: E402
 
 from common import get_model  # noqa: E402
 
+# 【补写】学习助手的提示词
 SYSTEM_PROMPT = (
     "You are a friendly study assistant for someone learning LangChain. Reply in the user's language.\n"
     "Use save_note when the user asks you to remember something, and list_notes to show notes."
 )
 
 
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:  # ★ 新增：每次调用都会传入的只读信息
     user_id: str
@@ -34,6 +41,7 @@ class UserContext:  # ★ 新增：每次调用都会传入的只读信息
 NOTES: dict[str, list[str]] = {}  # ★ 修改：按用户分开存
 
 
+# 【补写】学习助手的工具（ToolRuntime 写法参考 tools 页）
 @tool
 def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:  # ★ 修改
     """Save a study note for the user."""
@@ -43,6 +51,7 @@ def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:  # ★ 修�
     return f"Saved note #{len(notes)}."
 
 
+# 【补写】学习助手的工具
 @tool
 def list_notes(runtime: ToolRuntime[UserContext]) -> str:  # ★ 修改
     """List all of the user's notes."""
@@ -50,6 +59,7 @@ def list_notes(runtime: ToolRuntime[UserContext]) -> str:  # ★ 修改
     return "\n".join(f"#{i} {n}" for i, n in enumerate(notes, 1)) or "No notes yet."
 
 
+# 【补写】组装学习助手
 def build_agent():
     return create_agent(
         model=get_model(),
@@ -60,10 +70,12 @@ def build_agent():
     )
 
 
+# 【补写】生成新的 thread_id
 def new_config() -> dict:
     return {"configurable": {"thread_id": uuid.uuid4().hex}}
 
 
+# 【补写】聊天一轮
 def chat(agent, text: str, config: dict, context: UserContext) -> None:  # ★ 修改：多了 context
     stream = agent.stream_events(
         {"messages": [{"role": "user", "content": text}]}, config, context=context, version="v3"
@@ -80,6 +92,7 @@ def chat(agent, text: str, config: dict, context: UserContext) -> None:  # ★ �
     print()
 
 
+# 【补写】命令行主循环
 def main() -> None:
     agent = build_agent()
     config = new_config()
@@ -105,5 +118,6 @@ def main() -> None:
             chat(agent, text, config, context)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     main()

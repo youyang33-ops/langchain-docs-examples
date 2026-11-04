@@ -4,6 +4,13 @@
 
 四种消息：SystemMessage / HumanMessage / AIMessage / ToolMessage。
 每条消息都有 content（供应商原生格式）和 content_blocks（统一的标准格式）。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from langchain.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -12,6 +19,7 @@ from langchain_core.load import dumpd, load
 from common import get_model, run_demos
 
 
+# 【文档原代码·有改动】messages · Text prompts：合并 Text / Message / Dictionary 三种写法；模型改成 get_model()
 def demo_basic_usage():
     """三种输入写法：字符串 / 消息对象 / 字典"""
     model = get_model()
@@ -32,6 +40,7 @@ def demo_basic_usage():
     print(model.invoke(messages).text)
 
 
+# 【文档原代码·有改动】messages · System message：合并 System / Human / AI message 几节；模型改成 get_model()；示例问题有调整
 def demo_message_types():
     """系统消息、带元数据的人类消息、手动构造的 AI 消息"""
     model = get_model()
@@ -58,10 +67,12 @@ Be concise but thorough in your explanations.
     print(model.invoke(history).text)
 
 
+# 【文档原代码·有改动】messages · Tool message：合并 Tool calls 和 Tool message 两节；模型改成 get_model()
 def demo_tool_calls_and_tool_message():
     """AIMessage.tool_calls 与配对的 ToolMessage（tool_call_id 必须一致）"""
     model = get_model()
 
+    # 【文档原代码】messages · Tool calls
     def get_weather(location: str) -> str:
         """Get the weather at a location."""
         ...
@@ -84,6 +95,7 @@ def demo_tool_calls_and_tool_message():
     print(model.invoke(messages).text)
 
 
+# 【文档原代码·有改动】messages · Streaming and chunks：合并 Token usage 和 chunks 两节；模型改成 get_model()
 def demo_usage_and_chunks():
     """usage_metadata，以及流式 chunk 的累加"""
     model = get_model()
@@ -95,6 +107,7 @@ def demo_usage_and_chunks():
     print(full_message.text)
 
 
+# 【文档原代码·有改动】messages · Standard content blocks：合并 Message content 和 Standard content blocks 两节，只保留部分写法
 def demo_content_blocks():
     """content（原生格式）与 content_blocks（标准格式）的对应关系"""
     # Anthropic 的 thinking 块 → 标准的 reasoning 块
@@ -135,6 +148,7 @@ def demo_content_blocks():
 
 
 # 多模态输入的几种写法（URL / base64 / 供应商文件 ID），只展示结构，不发送
+# 【文档原代码·有改动】messages · Multimodal：节选几种写法，放进一个字典
 MULTIMODAL_EXAMPLES = {
     "image_url": {
         "role": "user",
@@ -174,6 +188,7 @@ MULTIMODAL_EXAMPLES = {
 }
 
 
+# 【补写】打印多模态消息的结构
 def demo_multimodal():
     """多模态消息结构：图片 / 文件 / 音频 / 视频"""
     for name, message in MULTIMODAL_EXAMPLES.items():
@@ -181,6 +196,7 @@ def demo_multimodal():
     print("要真正发送，请把 URL 换成真实图片，再 get_model().invoke([message])。")
 
 
+# 【文档原代码·有改动】messages · Serialization：load 加了 allowed_objects="messages"（消除警告）；加了 print
 def demo_serialization():
     """dumpd / load：消息与字典互转（存数据库、跨进程传递）"""
     message = HumanMessage("What is the capital of France?")
@@ -190,5 +206,6 @@ def demo_serialization():
     print(restored == message)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

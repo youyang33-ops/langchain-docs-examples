@@ -1,14 +1,22 @@
-"""综合项目的端到端测试：剧本式假模型 → 存笔记 → 检索 → 删除时人工审批。"""
+"""综合项目的端到端测试：剧本式假模型 → 存笔记 → 检索 → 删除时人工审批。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
+"""
 
 from langchain.messages import AIMessage, ToolCall
 
 from common import fake_model
 
 
+# 【补写】
 def call(name, args, id):
     return AIMessage(content="", tool_calls=[ToolCall(name=name, args=args, id=id)])
 
 
+# 【补写】
 def test_study_assistant_end_to_end(monkeypatch, capsys):
     from capstone import study_assistant as app
 
@@ -41,6 +49,7 @@ def test_study_assistant_end_to_end(monkeypatch, capsys):
     assert "Deleted." in out
 
 
+# 【补写】
 def test_guardrail_blocks_off_topic(monkeypatch):
     from capstone import study_assistant as app
 

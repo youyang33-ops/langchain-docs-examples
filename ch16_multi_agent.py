@@ -6,6 +6,13 @@
 - Skills：一个 agent 按需加载专门的提示词（轻量）
 - Router：先分类，再并行分发给多个专门 agent，最后汇总
 - Custom workflow：用 LangGraph 自己编排确定性流程 + agent 节点
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 import operator
@@ -26,6 +33,7 @@ from typing_extensions import NotRequired, TypedDict
 from common import FAKE, get_model, last_text, run_demos
 
 
+# 【补写】演示用的假搜索工具
 @tool
 def web_search(query: str) -> str:
     """Search the web for information."""
@@ -35,12 +43,14 @@ def web_search(query: str) -> str:
 # ---------------------------------------------------------------------------
 # 1. Subagents
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】multi-agent/subagents · Basic implementation：模型改成 get_model()；子 agent 加了工具和提示词；加了调用
 def demo_subagents_tool_per_agent():
     """每个子 agent 包装成一个工具"""
     research_agent = create_agent(
         model=get_model(), tools=[web_search], system_prompt="You research topics using web_search.", name="research"
     )
 
+    # 【文档原代码·有改动】multi-agent/subagents · Basic implementation：.content 改成 .text；加了返回类型
     @tool("research", description="Research a topic and return findings")
     def call_research_agent(query: str) -> str:
         result = research_agent.invoke({"messages": [{"role": "user", "content": query}]})
@@ -50,12 +60,14 @@ def demo_subagents_tool_per_agent():
     print(last_text(main_agent.invoke({"messages": [{"role": "user", "content": "What is LangGraph? Use research."}]})))
 
 
+# 【文档原代码】multi-agent/subagents · Enum constraint on dispatch tool
 class AgentName(str, Enum):
     RESEARCH = "research"
     WRITER = "writer"
     REVIEWER = "reviewer"
 
 
+# 【文档原代码·有改动】multi-agent/subagents · Enum constraint on dispatch tool：提示词来自 System prompt enumeration；模型改成 get_model()；三个子 agent 是补写
 def demo_subagents_dispatch_tool():
     """单个 task 工具 + 枚举约束，按名字派发给子 agent"""
     model = get_model()
@@ -65,6 +77,7 @@ def demo_subagents_dispatch_tool():
         AgentName.REVIEWER: create_agent(model, tools=[], system_prompt="Code and document review."),
     }
 
+    # 【补写】文档只给了函数签名，函数体是补写
     @tool
     def task(agent_name: AgentName, description: str) -> str:
         """Launch an ephemeral subagent for a task."""
@@ -85,14 +98,17 @@ def demo_subagents_dispatch_tool():
     print(last_text(main_agent.invoke({"messages": [{"role": "user", "content": "Write a one-line tagline for LangChain."}]})))
 
 
+# 【文档原代码·有改动】multi-agent/subagents · Subagent inputs：文档叫 CustomState，这里改名；字段改成 NotRequired
 class SharedState(AgentState):
     example_state_key: NotRequired[str]
 
 
+# 【文档原代码·有改动】multi-agent/subagents · Subagent outputs：合并 inputs / outputs 两节；模型改成 get_model()
 def demo_subagent_inputs_outputs():
     """子 agent 输入取自主 agent 的 state，输出用 Command 回写额外字段"""
     subagent1 = create_agent(model=get_model(), tools=[], state_schema=SharedState)
 
+    # 【文档原代码·有改动】multi-agent/subagents · Subagent outputs：合并两节；用 ToolRuntime 代替 InjectedToolCallId；回写内容改了
     @tool("subagent1_name", description="Ask the helper subagent a question.")
     def call_subagent1(query: str, runtime: ToolRuntime[None, SharedState]) -> Command:
         result = subagent1.invoke({
@@ -112,11 +128,13 @@ def demo_subagent_inputs_outputs():
 # ---------------------------------------------------------------------------
 # 2. Handoffs（A）：单个 agent + 中间件，按 current_step 切换"角色"
 # ---------------------------------------------------------------------------
+# 【补写】文档只引用了这个 state，没给定义
 class SupportState(AgentState):
     current_step: NotRequired[Literal["triage", "specialist"]]
     warranty_status: NotRequired[str]
 
 
+# 【文档原代码·有改动】multi-agent/handoffs · Single agent with middleware：只改了 docstring
 @tool
 def record_warranty_status(status: str, runtime: ToolRuntime[None, SupportState]) -> Command:
     """Record warranty status (in_warranty / out_of_warranty) and transition to the specialist step."""
@@ -127,18 +145,21 @@ def record_warranty_status(status: str, runtime: ToolRuntime[None, SupportState]
     })
 
 
+# 【补写】演示用的工具
 @tool
 def schedule_repair(device: str) -> str:
     """Schedule a repair appointment for a device."""
     return f"Repair scheduled for {device} next Monday."
 
 
+# 【补写】每个阶段的提示词和工具
 STEP_CONFIG = {
     "triage": ("You are a triage agent. Ask whether the device is under warranty, then call record_warranty_status.", ["record_warranty_status"]),
     "specialist": ("You are a repair specialist. The warranty status is {warranty_status}. Offer to schedule a repair.", ["schedule_repair"]),
 }
 
 
+# 【补写】文档只讲了思路，这里按 current_step 切换提示词和工具
 @wrap_model_call
 def step_router(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
     step = request.state.get("current_step", "triage")
@@ -149,6 +170,7 @@ def step_router(request: ModelRequest, handler: Callable[[ModelRequest], ModelRe
     ))
 
 
+# 【补写】运行单 agent 交接
 def demo_handoffs_single_agent():
     """同一个 agent，不同阶段换提示词和工具"""
     agent = create_agent(
@@ -167,11 +189,14 @@ def demo_handoffs_single_agent():
 # ---------------------------------------------------------------------------
 # 2. Handoffs（B）：多个 agent 子图，工具返回 Command(goto=..., graph=Command.PARENT)
 # ---------------------------------------------------------------------------
+# 【文档原代码】multi-agent/handoffs · Multiple agent subgraphs
 class MultiAgentState(AgentState):
     active_agent: NotRequired[str]
 
 
+# 【文档原代码·有改动】multi-agent/handoffs · Multiple agent subgraphs：把 transfer_to_sales 改成可以生成任意目标的工厂函数
 def _make_transfer_tool(target: str):
+    # 【文档原代码·有改动】multi-agent/handoffs · Multiple agent subgraphs：目标改成参数；goto 使用 target
     @tool(f"transfer_to_{target}")
     def transfer(runtime: ToolRuntime) -> Command:
         """Transfer the conversation to another agent."""
@@ -188,6 +213,7 @@ def _make_transfer_tool(target: str):
     return transfer
 
 
+# 【补写】组装两个 agent 的 StateGraph
 def build_handoff_graph():
     model = get_model()
     support_agent = create_agent(
@@ -208,6 +234,7 @@ def build_handoff_graph():
     )
 
 
+# 【补写】运行多 agent 交接
 def demo_handoffs_multi_agent():
     """support_agent ⇄ sales_agent 互相交接"""
     graph = build_handoff_graph()
@@ -219,12 +246,14 @@ def demo_handoffs_multi_agent():
 # ---------------------------------------------------------------------------
 # 3. Skills：按需加载专门的提示词
 # ---------------------------------------------------------------------------
+# 【补写】文档的 skill 内容是 ...，这两段提示词是补写
 SKILLS = {
     "write_sql": "You are a SQL expert. Always use explicit JOINs and LIMIT clauses. Explain the query briefly.",
     "review_legal_doc": "You are a legal reviewer. List risky clauses as bullet points with a severity.",
 }
 
 
+# 【文档原代码·有改动】multi-agent/skills · Basic implementation：文档函数体是 ...，这里补了实现
 @tool
 def load_skill(skill_name: str) -> str:
     """Load a specialized skill prompt.
@@ -238,6 +267,7 @@ def load_skill(skill_name: str) -> str:
     return SKILLS.get(skill_name, f"Unknown skill: {skill_name}")
 
 
+# 【文档原代码·有改动】multi-agent/skills · Basic implementation：模型改成 get_model()；加了调用
 def demo_skills():
     """agent 先调用 load_skill 拿到专门的指令，再完成任务"""
     agent = create_agent(
@@ -254,33 +284,39 @@ def demo_skills():
 # ---------------------------------------------------------------------------
 # 4. Router：分类 → 并行分发（Send）→ 汇总
 # ---------------------------------------------------------------------------
+# 【补写】router 分类结果的 schema
 class Classification(BaseModel):
     agent: Literal["github", "notion"] = Field(description="Which knowledge source to ask")
     query: str = Field(description="The sub-question for that source")
 
 
+# 【补写】router 分类结果的 schema
 class ClassificationList(BaseModel):
     items: list[Classification]
 
 
+# 【补写】router 工作流的 state（和 multi-agent/router-knowledge-base 教程的结构相近，但不是照抄）
 class RouterState(TypedDict):
     query: str
     results: Annotated[list[str], operator.add]  # 多个分支的结果用 add 合并
     final_answer: str
 
 
+# 【补写】演示用的假工具
 @tool
 def search_github(query: str) -> str:
     """Search GitHub issues and code."""
     return "GitHub: issue #123 says auth tokens expire after 1 hour."
 
 
+# 【补写】演示用的假工具
 @tool
 def search_notion(query: str) -> str:
     """Search internal Notion docs."""
     return "Notion: the onboarding doc says to rotate tokens via the admin panel."
 
 
+# 【补写】文档只给了 route_query 片段，整个工作流是补写
 def build_router():
     model = get_model()
     agents = {
@@ -288,6 +324,7 @@ def build_router():
         "notion": create_agent(model, tools=[search_notion], system_prompt="Answer using Notion search."),
     }
 
+    # 【补写】文档函数体是 ...，这里补了实现；加了假模型分支
     def classify_query(query: str) -> list[Classification]:
         """Use LLM to classify query and determine which agents to invoke."""
         if FAKE:
@@ -296,15 +333,19 @@ def build_router():
             f"Split this question into sub-questions for 'github' and/or 'notion': {query}"
         ).items
 
+    # 【文档原代码·有改动】multi-agent/router · Basic implementation：Send 的参数按 Pydantic 对象读取
     def route_query(state: RouterState):
         return [Send(c.agent, {"query": c.query}) for c in classify_query(state["query"])]
 
+    # 【补写】为每个知识源生成节点
     def make_node(name: str):
+        # 【补写】调用对应的 agent
         def node(state: dict) -> dict:
             result = agents[name].invoke({"messages": [{"role": "user", "content": state["query"]}]})
             return {"results": [f"{name}: {result['messages'][-1].text}"]}
         return node
 
+    # 【补写】汇总多个结果
     def synthesize(state: RouterState) -> dict:
         answer = model.invoke(f"Combine these findings into one answer for '{state['query']}':\n" + "\n".join(state["results"]))
         return {"final_answer": answer.text}
@@ -322,6 +363,7 @@ def build_router():
     )
 
 
+# 【补写】运行 router
 def demo_router():
     """无状态路由：一次问题并行问两个知识源"""
     workflow = build_router()
@@ -330,10 +372,12 @@ def demo_router():
     print("final:", result["final_answer"])
 
 
+# 【文档原代码·有改动】multi-agent/router · Tool wrapper：模型改成 get_model()；prompt= 改成 system_prompt=；加了 checkpointer 和调用
 def demo_router_as_tool():
     """有状态：把 router 包装成工具，交给一个带记忆的对话 agent"""
     workflow = build_router()
 
+    # 【文档原代码·有改动】multi-agent/router · Tool wrapper：调用时多传 results；两行合并
     @tool
     def search_docs(query: str) -> str:
         """Search across multiple documentation sources."""
@@ -352,19 +396,23 @@ def demo_router_as_tool():
 # ---------------------------------------------------------------------------
 # 5. Custom workflow：LangGraph 编排 + agent 节点
 # ---------------------------------------------------------------------------
+# 【补写】工作流的 state
 class WorkflowState(TypedDict):
     query: str
     context: str
     answer: str
 
 
+# 【文档原代码·有改动】multi-agent/custom-workflow · Basic implementation：模型改成 get_model()；多加了 retrieve 节点
 def demo_custom_workflow():
     """检索（确定性步骤）→ agent 回答（智能步骤）"""
     agent = create_agent(model=get_model(), tools=[web_search])
 
+    # 【补写】演示用的检索节点
     def retrieve(state: WorkflowState) -> dict:
         return {"context": "LangChain 1.x centers on create_agent plus middleware."}
 
+    # 【文档原代码·有改动】multi-agent/custom-workflow · Basic implementation：提示词里加入检索内容；.content 改成 .text
     def agent_node(state: WorkflowState) -> dict:
         """A LangGraph node that invokes a LangChain agent."""
         prompt = f"Context: {state['context']}\n\nQuestion: {state['query']}"
@@ -383,6 +431,7 @@ def demo_custom_workflow():
     print(workflow.invoke({"query": "What is the core API of LangChain 1.x?"})["answer"])
 
 
+# 【文档原代码·有改动】quickstart · Build a real-world agent：模型改成 get_model()；工具和问题改了
 def demo_deep_agent():
     """deepagents.create_deep_agent：自带规划、虚拟文件系统、子 agent、上下文压缩"""
     from deepagents import create_deep_agent
@@ -401,5 +450,6 @@ def demo_deep_agent():
     print("files:", list(result.get("files", {}).keys()))
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

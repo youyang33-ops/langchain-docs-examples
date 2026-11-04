@@ -4,6 +4,13 @@
 
 示例数据库 Chinook（音乐商店）会在第一次运行时自动下载到 data/Chinook.db。
 四个工具：列出表 → 看表结构 → 检查 SQL → 执行 SQL；再加人工审批防止误操作。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 import sqlite3
@@ -19,10 +26,12 @@ from langgraph.types import Command
 
 from common import get_model, run_demos
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：变量改名
 DB_URL = "https://storage.googleapis.com/benchmarks-artifacts/chinook/Chinook.db"
 DB_PATH = Path(__file__).with_name("data") / "Chinook.db"
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：路径改到 data/；失败时抛异常
 def ensure_database() -> None:
     if DB_PATH.exists():
         return
@@ -33,12 +42,14 @@ def ensure_database() -> None:
     print(f"File downloaded and saved as {DB_PATH}")
 
 
+# 【补写】统一打开数据库，用完自动关闭
 def _connect() -> closing[sqlite3.Connection]:
     ensure_database()
     return closing(sqlite3.connect(DB_PATH))  # with 结束时关闭连接
 
 
 # 下面是演示用的最小工具，不适合直接用于生产（没有权限控制）
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：连接改用 _connect()；写法简化
 @tool
 def sql_db_list_tables() -> str:
     """Input is an empty string, output is a comma-separated list of tables in the database."""
@@ -47,6 +58,7 @@ def sql_db_list_tables() -> str:
     return ", ".join(r[0] for r in rows if not r[0].startswith("sqlite_"))
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：连接改用 _connect()；去掉了部分错误处理和空结果判断
 @tool
 def sql_db_schema(table_names: str) -> str:
     """Input to this tool is a comma-separated list of tables, output is the schema and sample rows for those tables.
@@ -71,6 +83,7 @@ def sql_db_schema(table_names: str) -> str:
     return "\n\n".join(results)
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：连接改用 _connect()；docstring 少了最后一句
 @tool
 def sql_db_query(query: str) -> str:
     """Input to this tool is a detailed and correct SQL query, output is a result from the database.
@@ -83,6 +96,7 @@ def sql_db_query(query: str) -> str:
         return f"Error: {e}"
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：模型改成 get_model()；.format 改成 f-string
 @tool
 def sql_db_query_checker(query: str) -> str:
     """Use this tool to double check if your query is correct before executing it.
@@ -106,8 +120,10 @@ SQL Query: """
     return get_model().invoke(prompt).text.strip()
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：变量改名
 TOOLS = [sql_db_list_tables, sql_db_schema, sql_db_query, sql_db_query_checker]
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：变量改名
 SYSTEM_PROMPT = """
 You are an agent designed to interact with a SQL database.
 Given an input question, create a syntactically correct {dialect} query to run,
@@ -132,6 +148,7 @@ Then you should query the schema of the most relevant tables.
 """.format(dialect="sqlite", top_k=5)
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：把文档重复的循环封成函数；不打印工具结果
 def _print_stream(stream) -> None:
     for kind, item in stream.interleave("messages", "tool_calls"):
         if kind == "messages":
@@ -142,6 +159,7 @@ def _print_stream(stream) -> None:
     print()
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：连接改用 _connect()；打印工具描述时截断
 def demo_explore_database():
     """不用 agent，先直接看看数据库里有什么"""
     with _connect() as con:
@@ -153,6 +171,7 @@ def demo_explore_database():
         print(f"\n{t.name}: {t.description[:100]}...")
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：模型改成 get_model()；循环放进 _print_stream
 def demo_sql_agent():
     """SQL agent，流式输出每一步"""
     agent = create_agent(get_model(), TOOLS, system_prompt=SYSTEM_PROMPT)
@@ -163,6 +182,7 @@ def demo_sql_agent():
     _print_stream(stream)
 
 
+# 【文档原代码·有改动】sql-agent · Build your SQL agent：模型改成 get_model()；固定批准改成终端交互
 def demo_sql_agent_with_approval():
     """执行 SQL 前人工审批"""
     agent = create_agent(
@@ -186,5 +206,6 @@ def demo_sql_agent_with_approval():
         _print_stream(stream)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

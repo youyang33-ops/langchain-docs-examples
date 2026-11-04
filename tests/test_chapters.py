@@ -2,6 +2,11 @@
 
 假模型按顺序吐出预先写好的回复（包括工具调用），所以结果是确定的。
 运行：pytest tests/test_chapters.py -v
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import asyncio
@@ -17,11 +22,13 @@ from pydantic import ValidationError
 from common import fake_model
 
 
+# 【补写】
 def call(name: str, args: dict, id: str = "call_1") -> AIMessage:
     """一条"模型决定调用工具"的消息。"""
     return AIMessage(content="", tool_calls=[ToolCall(name=name, args=args, id=id)])
 
 
+# 【补写】
 def ask(text: str) -> dict:
     return {"messages": [HumanMessage(text)]}
 
@@ -29,6 +36,7 @@ def ask(text: str) -> dict:
 # ---------------------------------------------------------------------------
 # 第 4 章 · Tools
 # ---------------------------------------------------------------------------
+# 【补写】
 def test_tool_command_updates_state():
     import ch04_tools as ch
 
@@ -39,6 +47,7 @@ def test_tool_command_updates_state():
     assert result["messages"][-1].text == "Hi Ada!"
 
 
+# 【补写】
 def test_tool_reads_context():
     import ch04_tools as ch
 
@@ -49,6 +58,7 @@ def test_tool_reads_context():
     assert "Bob Smith" in tool_msg.text and "$1200" in tool_msg.text
 
 
+# 【补写】
 def test_return_direct_skips_final_model_call():
     import ch04_tools as ch
 
@@ -59,6 +69,7 @@ def test_return_direct_skips_final_model_call():
     assert "shipped" in result["messages"][-1].text
 
 
+# 【补写】
 def test_tool_error_middleware_turns_exception_into_message():
     import ch04_tools as ch
 
@@ -69,6 +80,7 @@ def test_tool_error_middleware_turns_exception_into_message():
     assert "Tool error" in tool_msg.text
 
 
+# 【补写】
 def test_store_tools_roundtrip():
     from langgraph.store.memory import InMemoryStore
 
@@ -87,6 +99,7 @@ def test_store_tools_roundtrip():
 # ---------------------------------------------------------------------------
 # 第 6 章 · Short-term memory
 # ---------------------------------------------------------------------------
+# 【补写】
 def test_update_user_info_then_greet():
     import ch06_short_term_memory as ch
 
@@ -103,6 +116,7 @@ def test_update_user_info_then_greet():
     assert tool_texts[-1] == "Hello John Smith!"
 
 
+# 【补写】
 def test_trim_messages_keeps_state_small():
     import ch06_short_term_memory as ch
 
@@ -116,12 +130,14 @@ def test_trim_messages_keeps_state_small():
 # ---------------------------------------------------------------------------
 # 第 10、12 章 · 中间件与护栏
 # ---------------------------------------------------------------------------
+# 【补写】
 def test_pii_redacts_input():
     agent = create_agent(fake_model(), tools=[], middleware=[PIIMiddleware("email", strategy="redact", apply_to_input=True)])
     result = agent.invoke(ask("My email is john.doe@example.com"))
     assert "john.doe@example.com" not in result["messages"][0].text
 
 
+# 【补写】
 def test_content_filter_blocks_before_model():
     import ch12_guardrails as ch
 
@@ -132,6 +148,7 @@ def test_content_filter_blocks_before_model():
     assert all("MODEL WAS CALLED" not in m.text for m in result["messages"])
 
 
+# 【补写】
 def test_tool_call_limit_stops_runaway_tool_use():
     from langchain.agents.middleware import ToolCallLimitMiddleware
 
@@ -146,6 +163,7 @@ def test_tool_call_limit_stops_runaway_tool_use():
 # ---------------------------------------------------------------------------
 # 第 13 章 · Human-in-the-loop
 # ---------------------------------------------------------------------------
+# 【补写】
 def _hitl_agent(model, **kwargs):
     import ch13_human_in_the_loop as ch
 
@@ -160,6 +178,7 @@ def _hitl_agent(model, **kwargs):
     )
 
 
+# 【补写】
 def test_hitl_approve_and_reject():
     model = fake_model([call("execute_sql", {"query": "DELETE FROM records"}), AIMessage("done")])
     agent = _hitl_agent(model)
@@ -173,6 +192,7 @@ def test_hitl_approve_and_reject():
     assert "Deleted" not in tool_msg.text  # 被拒绝，工具没有真正执行
 
 
+# 【补写】
 def test_hitl_edit_changes_arguments():
     model = fake_model([call("write_file", {"path": "/etc/passwd", "content": "x"}), AIMessage("done")])
     agent = _hitl_agent(model)
@@ -185,6 +205,7 @@ def test_hitl_edit_changes_arguments():
     assert "Wrote 5 characters to /workspace/a.txt" in tool_msg.text
 
 
+# 【补写】
 def test_hitl_per_call_mode_and_validation():
     model = fake_model([
         AIMessage(content="", tool_calls=[
@@ -213,11 +234,13 @@ def test_hitl_per_call_mode_and_validation():
 # ---------------------------------------------------------------------------
 # 第 15 章 · MCP
 # ---------------------------------------------------------------------------
+# 【补写】
 def test_mcp_tools_errors_and_structured_content():
     from langchain.mcp import MCPAdapter
 
     from ch15_mcp_server import server
 
+    # 【补写】
     async def run():
         async with MCPAdapter(server) as adapter:
             tools = await adapter.list_tools()
@@ -236,11 +259,13 @@ def test_mcp_tools_errors_and_structured_content():
     assert msgs["d"].status == "error"
 
 
+# 【补写】
 def test_mcp_destructive_hint():
     from langchain.mcp import MCPAdapter
 
     import ch15_mcp as ch
 
+    # 【补写】
     async def run():
         async with MCPAdapter(ch.server) as adapter:
             return {t.name: ch.is_destructive(t) for t in await adapter.list_tools()}
@@ -250,11 +275,13 @@ def test_mcp_destructive_hint():
     assert flags["get_forecast"] is False
 
 
+# 【补写】
 def test_mcp_elicitation_interrupt_and_resume():
     from langchain.mcp import MCPAdapter
 
     from ch15_mcp_server import server
 
+    # 【补写】
     async def run():
         async with MCPAdapter(server) as adapter:
             tools = await adapter.list_tools()
@@ -275,6 +302,7 @@ def test_mcp_elicitation_interrupt_and_resume():
 # ---------------------------------------------------------------------------
 # 第 16 章 · Multi-agent
 # ---------------------------------------------------------------------------
+# 【补写】
 def test_handoff_between_agents(monkeypatch):
     import ch16_multi_agent as ch
 
@@ -287,6 +315,7 @@ def test_handoff_between_agents(monkeypatch):
     assert result["messages"][-1].text == "The pro plan is $20/month."
 
 
+# 【补写】
 def test_single_agent_handoff_changes_step():
     import ch16_multi_agent as ch
 
@@ -300,6 +329,7 @@ def test_single_agent_handoff_changes_step():
 # ---------------------------------------------------------------------------
 # 第 18 章 · SQL agent（真实的 Chinook 数据库）
 # ---------------------------------------------------------------------------
+# 【补写】
 def test_sql_tools_on_chinook():
     import ch18_sql_agent as ch
 

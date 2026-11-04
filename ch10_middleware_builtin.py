@@ -6,6 +6,13 @@
 
 中间件挂在 agent 循环的各个环节（before_agent → before_model → model →
 after_model → tools → ... → after_agent），用来加重试、限流、脱敏、审批、摘要等能力。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 import re
@@ -41,12 +48,14 @@ from common import FAKE, get_model, get_small_model, last_text, run_demos
 
 
 # 本章共用的几个示例工具
+# 【文档原代码·有改动】agents · Tools：只改了 docstring
 @tool
 def search(query: str) -> str:
     """Search the web."""
     return f"Results for: {query}"
 
 
+# 【补写】文档只引用了这个工具，没给定义
 @tool
 def database_tool(sql: str) -> str:
     """Run a read-only SQL query."""
@@ -55,24 +64,28 @@ def database_tool(sql: str) -> str:
     return "42 rows"
 
 
+# 【文档原代码】middleware/built-in · Subagent
 @tool
 def get_weather(city: str) -> str:
     """Get the weather in a city."""
     return f"The weather in {city} is sunny."
 
 
+# 【文档原代码·有改动】middleware/built-in · Human-in-the-loop：加了 @tool
 @tool
 def your_read_email_tool(email_id: str) -> str:
     """Mock function to read an email by its ID."""
     return f"Email content for ID: {email_id}"
 
 
+# 【文档原代码·有改动】middleware/built-in · Human-in-the-loop：加了 @tool
 @tool
 def your_send_email_tool(recipient: str, subject: str, body: str) -> str:
     """Mock function to send an email."""
     return f"Email sent to {recipient} with subject '{subject}'"
 
 
+# 【补写】发送一条消息的小工具
 def _run(agent, text: str, **kwargs):
     config = {"configurable": {"thread_id": "mw"}}
     result = agent.invoke({"messages": [{"role": "user", "content": text}]}, config=config, **kwargs)
@@ -82,12 +95,14 @@ def _run(agent, text: str, **kwargs):
 # ---------------------------------------------------------------------------
 # 容错：错误、重试、降级
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · Tool error：末尾显式 return None
 def on_error(exc: Exception, request: ToolCallRequest) -> str | None:
     if isinstance(exc, ValueError):
         return f"`{request.tool_call['name']}` failed with {type(exc).__name__}."
     return None  # 其他异常继续抛出
 
 
+# 【文档原代码·有改动】middleware/built-in · Tool retry：合并 Tool error / Tool retry / Model retry / Model fallback；模型改成 get_model()
 def demo_fault_tolerance():
     """ToolErrorMiddleware / ToolRetryMiddleware / ModelRetryMiddleware / ModelFallbackMiddleware"""
     agent = create_agent(
@@ -106,6 +121,7 @@ def demo_fault_tolerance():
 # ---------------------------------------------------------------------------
 # 上下文管理：摘要、清理旧工具结果
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · Summarization：合并 Summarization 和 Context editing；模型改成 get_model()；加了 checkpointer
 def demo_context_management():
     """SummarizationMiddleware + ContextEditingMiddleware"""
     agent = create_agent(
@@ -124,6 +140,7 @@ def demo_context_management():
 # ---------------------------------------------------------------------------
 # 限流：模型调用次数、工具调用次数
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · Model call limit：合并 Model call limit 和 Tool call limit；模型改成 get_model()；run_limit 改成 1
 def demo_limits():
     """ModelCallLimitMiddleware / ToolCallLimitMiddleware"""
     agent = create_agent(
@@ -142,6 +159,7 @@ def demo_limits():
 # ---------------------------------------------------------------------------
 # 人工审批（第 13 章详细讲）
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · Human-in-the-loop：模型改成 get_model()；加了调用
 def demo_human_in_the_loop():
     """HumanInTheLoopMiddleware：发送邮件前暂停"""
     agent = create_agent(
@@ -164,6 +182,7 @@ def demo_human_in_the_loop():
 # ---------------------------------------------------------------------------
 # PII 检测
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · Custom PII types：正则不再单独存变量
 def detect_ssn(content: str) -> list[PIIMatch]:
     """Detect SSNs with validation."""
     matches: list[PIIMatch] = []
@@ -175,6 +194,7 @@ def detect_ssn(content: str) -> list[PIIMatch]:
     return matches
 
 
+# 【文档原代码·有改动】middleware/built-in · Custom PII types：几段合并；模型改成 get_model()；re.compile 改成字符串（新版不接受 Pattern）
 def demo_pii():
     """内置类型（email、credit_card）+ 自定义正则 / 函数；策略 redact / mask / hash / block"""
     agent = create_agent(
@@ -211,6 +231,7 @@ def demo_pii():
 # ---------------------------------------------------------------------------
 # 规划、工具筛选、工具模拟
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · To-do list：合并 To-do list / LLM tool selector / LLM tool emulator；模型改成 get_model()；工具和问题是补写
 def demo_planning_and_tool_selection():
     """TodoListMiddleware / LLMToolSelectorMiddleware / LLMToolEmulator"""
     agent = create_agent(model=get_model(), tools=[search], middleware=[TodoListMiddleware()])
@@ -236,6 +257,7 @@ def demo_planning_and_tool_selection():
 # ---------------------------------------------------------------------------
 # 文件与 Shell
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · File search：合并 File search 和 Shell tool；模型改成 get_model()；用临时目录；use_ripgrep 改成 False
 def demo_file_search_and_shell():
     """FilesystemFileSearchMiddleware（glob/grep）与 ShellToolMiddleware"""
     workspace = tempfile.mkdtemp(prefix="lc_workspace_")
@@ -262,6 +284,7 @@ def demo_file_search_and_shell():
 # ---------------------------------------------------------------------------
 # deepagents 提供的中间件（文件系统、子 agent）
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/built-in · Short-term vs. long-term filesystem：合并 Filesystem 和 Subagent；模型改成 get_model()；StoreBackend 补了 namespace（新版必须传）
 def demo_deepagents_middleware():
     """FilesystemMiddleware（CompositeBackend：/memories/ 存到 store）+ SubAgentMiddleware"""
     from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
@@ -303,6 +326,7 @@ def demo_deepagents_middleware():
 # ---------------------------------------------------------------------------
 # 在 LangGraph 工作流里嵌入带中间件的 agent
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】middleware/overview · Use middleware inside a LangGraph workflow：模型改成 get_model()；工具名和调用有调整
 def demo_agent_inside_langgraph():
     """把 create_agent 的结果当作 StateGraph 的一个节点"""
     email_agent = create_agent(
@@ -311,10 +335,12 @@ def demo_agent_inside_langgraph():
         middleware=[HumanInTheLoopMiddleware(interrupt_on={"your_send_email_tool": True})],
     )
 
+    # 【补写】文档写的是 assumes defined elsewhere
     def classify_node(state: AgentState) -> dict:
         print("[classify] 收到", len(state["messages"]), "条消息")
         return {}
 
+    # 【补写】文档写的是 assumes defined elsewhere
     def route(state: AgentState) -> str:
         return "email_agent"
 
@@ -333,5 +359,6 @@ def demo_agent_inside_langgraph():
     print(result["messages"][-1].text)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

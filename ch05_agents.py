@@ -14,6 +14,13 @@ create_agent(
     middleware,       # 中间件（第 10、11 章）
     name,             # 名字（多 agent 时区分来源）
 )
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from dataclasses import dataclass
@@ -36,12 +43,14 @@ from typing_extensions import NotRequired
 from common import FAKE, get_model, last_text, run_demos
 
 
+# 【文档原代码】agents · Planning and delegation
 @tool
 def search(query: str) -> str:
     """Search for a query and return a short summary."""
     return f"Search results for: {query}"
 
 
+# 【文档原代码·有改动】agents · System prompt：合并 Tools / System prompt / Name your agent；模型改成 get_model()；加了调用
 def demo_core_components():
     """模型 + 工具 + 系统提示词"""
     agent = create_agent(
@@ -53,11 +62,13 @@ def demo_core_components():
     print(last_text(agent.invoke({"messages": [{"role": "user", "content": "Search for LangChain news"}]})))
 
 
+# 【文档原代码】agents · Structured output
 class Answer(BaseModel):
     summary: str
     confidence: float
 
 
+# 【文档原代码·有改动】agents · Structured output：模型改成 get_model()；tools 改成 [search]；加了假模型跳过
 def demo_structured_output():
     """response_format：结果出现在 result["structured_response"]"""
     if FAKE:
@@ -68,11 +79,13 @@ def demo_structured_output():
     print(result["structured_response"])
 
 
+# 【文档原代码·有改动】agents · Agent state：字段改成 NotRequired（可以不传）
 class MyState(AgentState):
     user_id: NotRequired[str]
     call_count: NotRequired[int]
 
 
+# 【文档原代码·有改动】agents · Agent state：模型改成 get_model()；加了调用和 print
 def demo_agent_state():
     """state_schema：在默认的 messages 之外加自定义字段"""
     agent = create_agent(model=get_model(), tools=[], state_schema=MyState)
@@ -84,11 +97,13 @@ def demo_agent_state():
     print({k: v for k, v in result.items() if k != "messages"})
 
 
+# 【文档原代码】agents · Invocation
 @dataclass
 class Context:
     user_id: str
 
 
+# 【文档原代码·有改动】agents · Invocation：合并两段示例；模型改成 get_model()；问题改了
 def demo_invocation():
     """thread_id 让多轮对话共享历史；context 传入每次调用的只读信息"""
     agent = create_agent(
@@ -107,6 +122,7 @@ def demo_invocation():
         print(f"> {question}\n{last_text(result)}")
 
 
+# 【文档原代码·有改动】agents · Streaming：文档只给了循环，agent 定义是补写；tool_calls 用 getattr 读取
 def demo_streaming():
     """stream_events(version="v3")：每一步的完整 state 快照"""
     agent = create_agent(model=get_model(), tools=[search])
@@ -125,6 +141,7 @@ def demo_streaming():
             print(f"Calling tools: {[tc['name'] for tc in latest_message.tool_calls]}")
 
 
+# 【补写】把 agents 页几个 Configure the harness 中间件组合起来
 def demo_configure_harness():
     """用中间件组装 harness：容错、护栏、人工审批、任务规划"""
     agent = create_agent(
@@ -147,6 +164,7 @@ def demo_configure_harness():
     print("todos:", result.get("todos"))
 
 
+# 【文档原代码·有改动】agents · Planning and delegation：模型改成 get_model()；子 agent 模型同样改了；加了调用
 def demo_deepagents_harness():
     """deepagents 中间件：虚拟文件系统 + 子 agent（需要 pip install deepagents）"""
     from deepagents.backends import StateBackend
@@ -181,5 +199,6 @@ def demo_deepagents_harness():
     print("虚拟文件：", list(result.get("files", {}).keys()))
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

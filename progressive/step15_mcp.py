@@ -13,6 +13,11 @@
     - 普通的同步工具不用改：LangChain 会把它们放到线程池里执行
     - input() 用 asyncio.to_thread 包一层，不阻塞事件循环
 异步流没有 interleave，所以把显示工具调用的工作交给了 log_tool_calls 中间件。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import asyncio  # ★ 新增
@@ -58,6 +63,7 @@ DATA_DIR = Path(__file__).with_name("data")
 LAST_THREAD_FILE = DATA_DIR / "last_thread.txt"
 MCP_SERVER = Path(__file__).with_name("step15_mcp_server.py")  # ★ 新增
 
+# 【补写】学习助手的提示词
 BASE_PROMPT = (
     "You are a friendly study assistant for someone learning LangChain. Reply in the user's language.\n"
     "Use save_note when the user asks you to remember something, and list_notes to show notes.\n"
@@ -70,19 +76,23 @@ BASE_PROMPT = (
 )
 
 
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:
     user_id: str
 
 
+# 【补写】笔记的 namespace
 def notes_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "notes")
 
 
+# 【补写】用户资料的 namespace
 def profile_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "profile")
 
 
+# 【补写】学习助手的工具（ToolRuntime 写法参考 tools 页）
 @tool
 def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     """Save a study note for the user."""
@@ -91,6 +101,7 @@ def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:
     return f"Saved note {key}."
 
 
+# 【补写】学习助手的工具
 @tool
 def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     """List all of the user's notes with their IDs."""
@@ -98,6 +109,7 @@ def list_notes(runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{i.key}] {i.value['text']}" for i in items) or "No notes yet."
 
 
+# 【补写】学习助手的工具（store.search 写法参考 long-term-memory 页）
 @tool
 def search_notes(query: str, runtime: ToolRuntime[UserContext]) -> str:
     """Semantic search over the user's saved notes. Returns the most relevant notes."""
@@ -107,6 +119,7 @@ def search_notes(query: str, runtime: ToolRuntime[UserContext]) -> str:
     return "\n".join(f"[{h.key}] (score {h.score:.2f}) {h.value['text']}" for h in hits)
 
 
+# 【补写】学习助手的工具
 @tool
 def delete_note(note_id: str, runtime: ToolRuntime[UserContext]) -> str:
     """Delete a note by its ID. Requires human approval."""
@@ -116,6 +129,7 @@ def delete_note(note_id: str, runtime: ToolRuntime[UserContext]) -> str:
     return f"Deleted note {note_id}."
 
 
+# 【补写】学习助手的工具（读写 store 写法参考 context-engineering · Writes）
 @tool
 def update_profile(
     name: str | None = None, answer_style: str | None = None, *, runtime: ToolRuntime[UserContext]
@@ -131,6 +145,7 @@ def update_profile(
     return f"Profile updated: {profile}"
 
 
+# 【补写】出题的 schema（写法参考 models · Structured output）
 class QuizQuestion(BaseModel):
     question: str
     choices: list[str] = Field(description="Exactly 4 answer choices, without letter prefixes")
@@ -138,11 +153,13 @@ class QuizQuestion(BaseModel):
     explanation: str = Field(description="One sentence explaining the correct answer")
 
 
+# 【补写】出题的 schema
 class Quiz(BaseModel):
     topic: str
     questions: list[QuizQuestion]
 
 
+# 【补写】出题工具
 @tool
 def make_quiz(topic: str, n: int = 3) -> str:
     """Create a multiple-choice quiz about a topic."""
@@ -159,6 +176,7 @@ def make_quiz(topic: str, n: int = 3) -> str:
     return "\n".join(lines)
 
 
+# 【补写】写法参考 context-engineering · System Prompt
 @dynamic_prompt
 async def personalized_prompt(request: ModelRequest) -> str:  # ★ 修改：async
     profile = await request.runtime.store.aget(profile_ns(request.runtime), "me")  # ★ 修改：get → aget
@@ -171,9 +189,11 @@ async def personalized_prompt(request: ModelRequest) -> str:  # ★ 修改：asy
     return prompt
 
 
+# 【补写】关键词表
 BLOCKED_KEYWORDS = ["malware", "exploit", "ddos"]
 
 
+# 【补写】写法参考 guardrails · Before agent guardrails
 @before_agent(can_jump_to=["end"])
 def block_harmful_requests(state, runtime: Runtime) -> dict[str, Any] | None:
     text = state["messages"][-1].text.lower()
@@ -185,6 +205,7 @@ def block_harmful_requests(state, runtime: Runtime) -> dict[str, Any] | None:
     return None
 
 
+# 【补写】写法参考 middleware/custom · Tool call monitoring
 @wrap_tool_call
 async def log_tool_calls(  # ★ 修改：改成 async，并且顺便打印调用内容（代替 interleave）
     request: ToolCallRequest, handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]]
@@ -196,18 +217,21 @@ async def log_tool_calls(  # ★ 修改：改成 async，并且顺便打印调�
     return result
 
 
+# 【补写】真实模型 / 假向量二选一
 def get_embeddings():
     if FAKE:
         return DeterministicFakeEmbedding(size=256)
     return init_embeddings(os.getenv("LC_EMBEDDINGS", "openai:text-embedding-3-small"))
 
 
+# 【补写】向量索引配置
 def index_config() -> dict:
     embeddings = get_embeddings()
     dims = len(embeddings.embed_query("dimension probe"))
     return {"embed": embeddings, "dims": dims, "fields": ["text"]}
 
 
+# 【补写】写法参考 multi-agent/subagents · Basic implementation
 def make_research_tool():
     researcher = create_agent(
         get_small_model(),
@@ -219,6 +243,7 @@ def make_research_tool():
         name="researcher",  # 流式输出时可以通过名字区分是哪个 agent 在说话
     )
 
+    # 【补写】子 agent 包装成工具
     @tool("research", description="Delegate a question to the researcher subagent and get its explanation.")
     def research(question: str) -> str:
         result = researcher.invoke({"messages": [{"role": "user", "content": question}]})
@@ -227,6 +252,7 @@ def make_research_tool():
     return research
 
 
+# 【补写】组装学习助手
 def build_agent(store: AsyncSqliteStore, checkpointer: AsyncSqliteSaver, mcp_tools: list):  # ★ 修改
     return create_agent(
         model=get_model(),
@@ -248,18 +274,21 @@ def build_agent(store: AsyncSqliteStore, checkpointer: AsyncSqliteSaver, mcp_too
     )
 
 
+# 【补写】生成新的 thread_id
 def new_config() -> dict:
     thread_id = uuid.uuid4().hex
     LAST_THREAD_FILE.write_text(thread_id)
     return {"configurable": {"thread_id": thread_id}}
 
 
+# 【补写】读取上次的 thread_id
 def resume_config() -> dict:
     if LAST_THREAD_FILE.exists():
         return {"configurable": {"thread_id": LAST_THREAD_FILE.read_text().strip()}}
     return new_config()
 
 
+# 【补写】聊天一轮
 async def chat(agent, text: str, config: dict, context: UserContext) -> None:  # ★ 修改：async 版本
     payload = {"messages": [{"role": "user", "content": text}]}
     while True:
@@ -284,12 +313,14 @@ async def chat(agent, text: str, config: dict, context: UserContext) -> None:  #
         payload = Command(resume={"decisions": decisions})
 
 
+# 【补写】打印长期记忆
 async def show_memory(store, user_id: str) -> None:  # ★ 修改：在事件循环里要用 asearch
     for category in ("profile", "notes"):
         for item in await store.asearch((user_id, category), limit=50):
             print(f"  {category:<8} {item.key}: {item.value}")
 
 
+# 【补写】命令行主循环
 async def main() -> None:  # ★ 修改：async + 打开 MCP 连接
     DATA_DIR.mkdir(exist_ok=True)
     async with (
@@ -328,5 +359,6 @@ async def main() -> None:  # ★ 修改：async + 打开 MCP 连接
                 await chat(agent, text, config, context)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     asyncio.run(main())  # ★ 修改

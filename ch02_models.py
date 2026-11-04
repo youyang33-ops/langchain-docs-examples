@@ -6,6 +6,13 @@
 - init_chat_model("供应商:模型名") 一行切换 OpenAI / Anthropic / Gemini / Bedrock ...
 - 三种调用：invoke（一次性）、stream（流式）、batch（批量）
 - bind_tools 让模型"决定"调用工具；with_structured_output 让模型输出固定结构
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 from langchain.agents import create_agent
@@ -23,6 +30,7 @@ from common import FAKE, MODEL, SMALL_MODEL, get_model, get_small_model, run_dem
 # ---------------------------------------------------------------------------
 # 初始化与参数
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】models · Parameters：模型改成 get_model()；调用一次看结果的代码来自 Basic usage
 def demo_init():
     """init_chat_model 初始化模型并调用一次"""
     # 等价写法：from langchain_openai import ChatOpenAI; ChatOpenAI(model="gpt-5.5")
@@ -39,6 +47,7 @@ def demo_init():
 # ---------------------------------------------------------------------------
 # 调用方式：invoke / stream / batch
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】models · Invoke：三段示例合并；模型改成 get_model()；print 改成只打印 .text
 def demo_invoke():
     """invoke：字符串、字典列表、消息对象三种输入"""
     model = get_model()
@@ -61,6 +70,7 @@ def demo_invoke():
     print(model.invoke(conversation).text)
 
 
+# 【文档原代码·有改动】models · Stream：三段示例合并；模型改成 get_model()
 def demo_stream():
     """stream：逐块输出，并把 chunk 累加成完整消息"""
     model = get_model()
@@ -86,6 +96,7 @@ def demo_stream():
     print()
 
 
+# 【文档原代码·有改动】models · Batch：两段示例合并；模型改成 get_model()；batch_as_completed 按（下标，结果）解包，文档是直接 print
 def demo_batch():
     """batch / batch_as_completed：并行处理多个输入"""
     model = get_model()
@@ -104,12 +115,14 @@ def demo_batch():
 # ---------------------------------------------------------------------------
 # 工具调用与结构化输出（模型层面；agent 层面见第 4、8 章）
 # ---------------------------------------------------------------------------
+# 【文档原代码】models · Tool calling
 @tool
 def get_weather(location: str) -> str:
     """Get the weather at a location."""
     return f"It's sunny in {location}."
 
 
+# 【文档原代码·有改动】models · Tool calling：模型改成 get_model()；两行 print 合并
 def demo_tool_calling():
     """bind_tools：模型只"提出"工具调用，不会自己执行"""
     model_with_tools = get_model().bind_tools([get_weather])
@@ -118,6 +131,7 @@ def demo_tool_calling():
         print(f"Tool: {tool_call['name']}  Args: {tool_call['args']}")
 
 
+# 【文档原代码】models · Structured output
 class Movie(BaseModel):
     """A movie with details."""
 
@@ -127,6 +141,7 @@ class Movie(BaseModel):
     rating: float = Field(description="The movie's rating out of 10")
 
 
+# 【文档原代码】models · Structured output
 class MovieDict(TypedDict):
     """A movie with details."""
 
@@ -136,6 +151,7 @@ class MovieDict(TypedDict):
     rating: Annotated[float, ..., "The movie's rating out of 10"]
 
 
+# 【文档原代码·有改动】models · Structured output：变量 json_schema 改名
 MOVIE_JSON_SCHEMA = {
     "title": "Movie",
     "description": "A movie with details",
@@ -150,6 +166,7 @@ MOVIE_JSON_SCHEMA = {
 }
 
 
+# 【文档原代码·有改动】models · Structured output：三种 schema 合并；模型改成 get_model()；加了假模型跳过
 def demo_structured_output():
     """with_structured_output：Pydantic / TypedDict / JSON Schema 三种 schema"""
     if FAKE:
@@ -168,6 +185,7 @@ def demo_structured_output():
 # ---------------------------------------------------------------------------
 # 进阶：profile、推理、token 用量、运行配置、可配置模型
 # ---------------------------------------------------------------------------
+# 【文档原代码·有改动】models · Reasoning：合并 Model profiles 和 Reasoning；模型改成 get_model()；用 getattr 读 profile
 def demo_profile_and_reasoning():
     """model.profile 能力描述 + 读取推理（reasoning）内容块"""
     model = get_model()
@@ -177,6 +195,7 @@ def demo_profile_and_reasoning():
     print("reasoning:", " ".join(step.get("reasoning", "") for step in reasoning_steps) or "（无）")
 
 
+# 【文档原代码·有改动】models · Token usage：合并三种写法；模型改成 get_model()
 def demo_token_usage():
     """usage_metadata 与两种用量回调"""
     model = get_model()
@@ -192,6 +211,7 @@ def demo_token_usage():
         print(cb.usage_metadata)
 
 
+# 【文档原代码·有改动】models · Invocation config：模型改成 get_model()；去掉了 callbacks 这一项
 def demo_invocation_config():
     """RunnableConfig：run_name / tags / metadata（会出现在 LangSmith 追踪里）"""
     response = get_model().invoke(
@@ -205,6 +225,7 @@ def demo_invocation_config():
     print(response.text)
 
 
+# 【文档原代码·有改动】models · Configurable models：改成循环；模型名取自 .env；加了假模型跳过
 def demo_configurable_model():
     """不指定模型名，调用时再通过 config 选择模型"""
     if FAKE:
@@ -218,11 +239,13 @@ def demo_configurable_model():
         print(name, "->", reply.text[:80])
 
 
+# 【文档原代码·有改动】models · Dynamic model selection：模型改成 get_model / get_small_model；中间件移到函数里；加了一次调用
 def demo_dynamic_model_selection():
     """中间件里按对话长度切换模型（第 9、11 章还会展开）"""
     basic_model = get_small_model()
     advanced_model = get_model()
 
+    # 【文档原代码·有改动】models · Dynamic model selection：if/else 改成一行条件表达式
     @wrap_model_call
     def dynamic_model_selection(request: ModelRequest, handler) -> ModelResponse:
         """Choose model based on conversation complexity."""
@@ -234,5 +257,6 @@ def demo_dynamic_model_selection():
     print(result["messages"][-1].text)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())

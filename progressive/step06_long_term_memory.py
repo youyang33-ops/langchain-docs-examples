@@ -8,6 +8,11 @@
     > /new                            （新对话：短期记忆清空）
     > /memory                         （长期记忆还在）
 区别：checkpointer 按 thread_id 存"这段对话"；store 按 namespace 存"关于这个用户的事"。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】   和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【补写】         文档没有给出这段代码，是我写的
+这个文件是为学习项目写的，不是文档原有的内容；"参考"表示只借用了文档的写法。
 """
 
 import sys
@@ -24,6 +29,7 @@ from langgraph.store.memory import InMemoryStore  # noqa: E402  ★ 新增
 
 from common import get_model  # noqa: E402
 
+# 【补写】学习助手的提示词
 SYSTEM_PROMPT = (
     "You are a friendly study assistant for someone learning LangChain. Reply in the user's language.\n"
     "Use save_note when the user asks you to remember something, and list_notes to show notes.\n"
@@ -31,20 +37,24 @@ SYSTEM_PROMPT = (
 )
 
 
+# 【文档原代码】tools · Context
 @dataclass
 class UserContext:
     user_id: str
 
 
 # ★ 新增：namespace 像文件夹路径，按 (用户, 类别) 隔离数据
+# 【补写】笔记的 namespace
 def notes_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "notes")
 
 
+# 【补写】用户资料的 namespace
 def profile_ns(runtime) -> tuple[str, str]:
     return (runtime.context.user_id, "profile")
 
 
+# 【补写】学习助手的工具（ToolRuntime 写法参考 tools 页）
 @tool
 def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:  # ★ 修改：写入 store
     """Save a study note for the user."""
@@ -53,6 +63,7 @@ def save_note(text: str, runtime: ToolRuntime[UserContext]) -> str:  # ★ 修�
     return f"Saved note {key}."
 
 
+# 【补写】学习助手的工具
 @tool
 def list_notes(runtime: ToolRuntime[UserContext]) -> str:  # ★ 修改：从 store 读取
     """List all of the user's notes with their IDs."""
@@ -60,6 +71,7 @@ def list_notes(runtime: ToolRuntime[UserContext]) -> str:  # ★ 修改：从 st
     return "\n".join(f"[{i.key}] {i.value['text']}" for i in items) or "No notes yet."
 
 
+# 【补写】学习助手的工具（读写 store 写法参考 context-engineering · Writes）
 @tool
 def update_profile(  # ★ 新增
     name: str | None = None, answer_style: str | None = None, *, runtime: ToolRuntime[UserContext]
@@ -75,6 +87,7 @@ def update_profile(  # ★ 新增
     return f"Profile updated: {profile}"
 
 
+# 【补写】组装学习助手
 def build_agent(store: InMemoryStore):  # ★ 修改：store 从外面传入，main 里还要用它
     return create_agent(
         model=get_model(),
@@ -86,10 +99,12 @@ def build_agent(store: InMemoryStore):  # ★ 修改：store 从外面传入，m
     )
 
 
+# 【补写】生成新的 thread_id
 def new_config() -> dict:
     return {"configurable": {"thread_id": uuid.uuid4().hex}}
 
 
+# 【补写】聊天一轮
 def chat(agent, text: str, config: dict, context: UserContext) -> None:
     stream = agent.stream_events(
         {"messages": [{"role": "user", "content": text}]}, config, context=context, version="v3"
@@ -106,12 +121,14 @@ def chat(agent, text: str, config: dict, context: UserContext) -> None:
     print()
 
 
+# 【补写】打印长期记忆
 def show_memory(store, user_id: str) -> None:  # ★ 新增
     for category in ("profile", "notes"):
         for item in store.search((user_id, category), limit=50):
             print(f"  {category:<8} {item.key}: {item.value}")
 
 
+# 【补写】命令行主循环
 def main() -> None:
     store = InMemoryStore()  # ★ 新增
     agent = build_agent(store)
@@ -141,5 +158,6 @@ def main() -> None:
             chat(agent, text, config, context)
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     main()

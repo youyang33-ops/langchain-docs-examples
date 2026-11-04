@@ -8,6 +8,13 @@
 示例数据是 Nike 2023 年报 PDF；第一次运行 download_pdf 会下载到 data/ 目录：
     python ch17_knowledge_base_rag.py download_pdf
 没有 PDF 时自动退回到几段内置文本，保证离线也能跑。
+
+代码来源标注（每个类、函数和主要常量前面都有一行）：
+  【文档原代码】          和文档的代码完全一致（只比较语法，不比较注释和排版）
+  【文档原代码·有改动】   来自文档，做了改动（标注里写了改了什么）
+  【补写】                文档没有给出这段代码，是我写的
+来源写成"页面 · 小节"，页面相对于 https://docs.langchain.com/oss/python/langchain/
+注意：overview 页只有 get_weather 这一个例子，其余代码来自它链接的其他页面。
 """
 
 import os
@@ -26,10 +33,12 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from common import FAKE, get_model, last_text, run_demos
 
+# 【补写】示例 PDF 的下载地址，文档没有写
 PDF_URL = "https://raw.githubusercontent.com/langchain-ai/langchain/v0.3/docs/docs/example_data/nke-10k-2023.pdf"
 PDF_PATH = Path(__file__).with_name("data") / "nke-10k-2023.pdf"
 EMBEDDING_MODEL = os.getenv("LC_EMBEDDINGS", "openai:text-embedding-3-small")
 
+# 【文档原代码·有改动】knowledge-base · Create documents：前两条来自文档，后三条是补写
 FALLBACK_DOCS = [
     Document(page_content="Dogs are great companions, known for their loyalty and friendliness.", metadata={"source": "mammal-pets-doc"}),
     Document(page_content="Cats are independent pets that often enjoy their own space.", metadata={"source": "mammal-pets-doc"}),
@@ -39,6 +48,7 @@ FALLBACK_DOCS = [
 ]
 
 
+# 【补写】真实模型 / 假向量二选一
 def get_embeddings():
     """真实模式用 init_embeddings；假模型模式用确定性的假向量（只保证能跑，不保证相关性）"""
     if FAKE:
@@ -46,6 +56,7 @@ def get_embeddings():
     return init_embeddings(EMBEDDING_MODEL)
 
 
+# 【文档原代码】knowledge-base · Load and split a PDF
 def load_pdf_pages(file_path: str) -> list[Document]:
     reader = pypdf.PdfReader(file_path)
     return [
@@ -54,6 +65,7 @@ def load_pdf_pages(file_path: str) -> list[Document]:
     ]
 
 
+# 【补写】有 PDF 就读 PDF，否则用内置文本
 def load_documents() -> list[Document]:
     if PDF_PATH.exists():
         return load_pdf_pages(str(PDF_PATH))
@@ -61,6 +73,7 @@ def load_documents() -> list[Document]:
     return FALLBACK_DOCS
 
 
+# 【文档原代码·有改动】knowledge-base · Load and split a PDF：加载、切分、入库三步合成一个函数；改用 get_embeddings()
 def build_vector_store() -> InMemoryVectorStore:
     docs = load_documents()
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True)
@@ -71,6 +84,7 @@ def build_vector_store() -> InMemoryVectorStore:
     return vector_store
 
 
+# 【补写】下载示例 PDF
 def demo_download_pdf():
     """下载示例 PDF（Nike 2023 10-K，约 2.4MB）到 data/"""
     PDF_PATH.parent.mkdir(exist_ok=True)
@@ -78,6 +92,7 @@ def demo_download_pdf():
     print(f"已保存到 {PDF_PATH}")
 
 
+# 【文档原代码·有改动】knowledge-base · Generate embeddings：documents 改成 FALLBACK_DOCS；改用 get_embeddings()
 def demo_documents_and_embeddings():
     """Document 结构 + 向量长度"""
     embeddings = get_embeddings()
@@ -88,6 +103,7 @@ def demo_documents_and_embeddings():
     print(vector_1[:10])
 
 
+# 【文档原代码·有改动】knowledge-base · Search by string：合并字符串、分数、向量三种搜索；问题按有无 PDF 切换
 def demo_similarity_search():
     """按字符串搜、带分数搜、按向量搜"""
     vector_store = build_vector_store()
@@ -103,6 +119,7 @@ def demo_similarity_search():
     print("[by vector]", vector_store.similarity_search_by_vector(embedding)[0].page_content[:300])
 
 
+# 【文档原代码·有改动】knowledge-base · Search by string：改用 build_vector_store()；只打印前 300 字
 async def demo_async_search():
     """异步版本 asimilarity_search"""
     vector_store = build_vector_store()
@@ -110,10 +127,12 @@ async def demo_async_search():
     print(results[0].page_content[:300])
 
 
+# 【文档原代码·有改动】knowledge-base · Use retrievers：两段合并；问题改了
 def demo_retrievers():
     """@chain 自定义 retriever 与 vector_store.as_retriever()"""
     vector_store = build_vector_store()
 
+    # 【文档原代码·有改动】knowledge-base · Use retrievers：List 改成 list
     @chain
     def retriever(query: str) -> list[Document]:
         return vector_store.similarity_search(query, k=1)
@@ -125,10 +144,12 @@ def demo_retrievers():
     print([d[0].page_content for d in retriever2.batch(questions)])
 
 
+# 【补写】knowledge-base 页没有这段，是我写的 Agentic RAG
 def demo_rag_agent():
     """Agentic RAG：把检索包装成工具，agent 自己决定何时检索、检索什么"""
     vector_store = build_vector_store()
 
+    # 【补写】knowledge-base 页没有这段
     @tool(response_format="content_and_artifact")
     def retrieve_context(query: str):
         """Retrieve information to help answer a query."""
@@ -145,5 +166,6 @@ def demo_rag_agent():
     print(last_text(agent.invoke({"messages": [{"role": "user", "content": question}]})))
 
 
+# 【补写】命令行入口
 if __name__ == "__main__":
     run_demos(globals())
